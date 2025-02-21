@@ -1,4 +1,4 @@
-#!/root/anaconda3/envs/svocenv/bin/python
+#!/root/anaconda3/envs/svocenv/bin/python # Change to your Python interpreter path
 import os, asyncio, re, getopt, sys, pandas as pd, textwrap, subprocess, copy, logging, io, time, platform, optparse, gzip, glob
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' 
 import modules.db_handler as db_handler
