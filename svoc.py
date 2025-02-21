@@ -634,13 +634,10 @@ def main():
             # If it's not the first variant, append the written file.
             if output_type == 'json':
                 df_output.to_json(svoc_output_json_file, orient='records', lines=True, mode='a')
-                #print(f"SVOC annotation result has been successfully stored in {svoc_output_json_file}.")
             elif output_type == 'csv':
                 df_output.to_csv(svoc_output_csv_file, index=False, mode='a', header=False)
-                #print(f"SVOC annotation result has been successfully stored in {svoc_output_csv_file}.")
             else:
                 df_output.to_csv(svoc_output_txt_file, sep='\t', mode='a', index=False)
-                #print(f"SVOC annotation result has been successfully stored in {svoc_output_txt_file}.")
         
     print("%s" %end_description)
 
