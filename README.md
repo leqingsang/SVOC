@@ -21,7 +21,7 @@ You can edit all the options in the configure and if you use this options, you c
 
 - -b hg19, --buildver=hg19    
 genomic build version           
-It can be hg19, will support other version later.
+It can be hg19 and hg38, will support other version later.
 
 - -i example/example1.vcf, --input=example/example1.vcf           
 input file of variants for classification           
