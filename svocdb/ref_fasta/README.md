@@ -1,4 +1,4 @@
-This is the default reference genome file directory in the configuration file (config.ini), or you can customize it.  
+The default reference genome file directory in the configuration file (config.ini), or you can customize it.  
 
 **hg19.fa** can be downloaded from UCSC [hg19.fa.gz](https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/) and indexed with `samtools faidx`
 
