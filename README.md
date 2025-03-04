@@ -56,8 +56,8 @@ ref_fasta = %(database_svoc)s/ref_fasta
 gnomadv2 = %(database_svoc)s/gnomadv2
 
 [Annovar]
-table_annovar = /mnt/annovar/table_annovar.pl
-annovar_database_locat = /mnt/annovar/humandb
+table_annovar = /annovar/table_annovar.pl
+annovar_database_locat = /annovar/humandb
 # the database location/dir from annnovar   check if database file exists
 database_names = refGene avsnp151 dbnsfp47a_interpro clinvar_20240917 intervar_20180118 dbnsfp47a dbscsnv11
 ```
