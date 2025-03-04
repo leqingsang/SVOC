@@ -1,1 +1,2 @@
 svocdb/SVOC_v20250225.db filter=lfs diff=lfs merge=lfs -text
+svocdb/MANE.GRCh38.v1.4.ensembl_genomic.gtf filter=lfs diff=lfs merge=lfs -text
