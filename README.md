@@ -69,7 +69,7 @@ database_names = refGene avsnp151 dbnsfp47a_interpro clinvar_20240917 intervar_2
 
 `gnomadv2` is the default gnomad v2.1.1 file directory, or you can customize it. You need to download: 
 
-- **hg19.fa** can be downloaded from UCSC [hg19.fa.gz](https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/) and indexed with `samtools faidx`
+- **gnomad.genomes.r2.1.1.sites.liftover_grch38.vcf.bgz** can be downloaded from [gnomad.genomes.r2.1.1.sites.liftover_grch38.vcf.bgz](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/liftover_grch38/vcf/genomes/gnomad.genomes.r2.1.1.sites.liftover_grch38.vcf.bgz) and TBI from [gnomad.genomes.r2.1.1.sites.liftover_grch38.vcf.bgz.tbi](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/liftover_grch38/vcf/genomes/gnomad.genomes.r2.1.1.sites.liftover_grch38.vcf.bgz.tbi)
 
 - **hg38.fa** can be downloaded from NCBI [GRCh38_no_alt_analysis_set.fna.gz](http://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/seqs_for_alignment_pipelines.ucsc_ids/) and indexed with `samtools faidx`
 
