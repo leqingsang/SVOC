@@ -40,6 +40,29 @@ cd $HOME/.vep/homo_sapiens_refseq/${r}_GRCh38/
 wget $FTP/current_fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 tar xzf Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 ```
+## Configuration
+
+`SVOC/config.ini`
+
+```ini
+[SVOC]
+buildver = hg19 
+inputfile = example/example1.vcf
+outfile = example/example1
+output_type = txt
+database_svoc = svocdb 
+mane = %(database_svoc)s/MANE.GRCh38.v1.4.ensembl_genomic.gtf
+ref_fasta = %(database_svoc)s/ref_fasta
+gnomadv2 = %(database_svoc)s/gnomadv2
+
+[Annovar]
+table_annovar = /mnt/annovar/table_annovar.pl
+annovar_database_locat = /mnt/annovar/humandb
+# the database location/dir from annnovar   check if database file exists
+#database_names = refGene avsnp151 dbnsfp47a_interpro clinvar_20240917 intervar_20180118 dbnsfp47a dbscsnv11
+database_names = refGene avsnp151 dbnsfp47a_interpro clinvar_20240917 intervar_20180118 dbnsfp47a dbscsnv11
+```
+
 ## OPTIONS
 
 - --version             
