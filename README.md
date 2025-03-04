@@ -40,7 +40,7 @@ cd $HOME/.vep/homo_sapiens_refseq/${r}_GRCh38/
 wget $FTP/current_fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 tar xzf Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 ```
-## Configuration
+4. Configuration
 
 `SVOC/config.ini`
 
