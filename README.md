@@ -7,7 +7,7 @@ SVOC (Somatic Variant Oncogenicity Classifier) is a bioinformatics software tool
 2. You need install [ANNOVAR](http://annovar.openbioinformatics.org/en/latest/) (version >= 2016-02-01) and [TransVar](https://github.com/zwdzwd/transvar) (version >= 2.5.10.20211024).
 3. SVOC uses [AutoPVS1](https://github.com/JiguangPeng/autopvs1) to determine the effect of variants (nonsense, frameshift, canonical ±1 or 2 splice sites, initiation codon, single-exon or multiexon deletion) on gene function. Although the AutoPVS1 algorithm is integrated into the SVOC project, the required resources for its execution (such as VEP, its cache, and FASTA files) need to be pre-installed.
 
-VEP Installation
+-VEP Installation
 ```bash
 cd SVOC/modules/
 git clone https://github.com/Ensembl/ensembl-vep.git
@@ -17,7 +17,7 @@ git checkout release/104
 perl INSTALL.pl
 ```
 
-VEP cache and faste files
+-VEP cache and faste files
 VEP cache and faste files can be automatically downloaded and configured using [INSTALL.pl](https://www.ensembl.org/info/docs/tools/vep/script/vep_download.html#installer). You can also download and set up them manually:
 
 ```bash
