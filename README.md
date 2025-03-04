@@ -62,6 +62,11 @@ annovar_database_locat = /mnt/annovar/humandb
 #database_names = refGene avsnp151 dbnsfp47a_interpro clinvar_20240917 intervar_20180118 dbnsfp47a dbscsnv11
 database_names = refGene avsnp151 dbnsfp47a_interpro clinvar_20240917 intervar_20180118 dbnsfp47a dbscsnv11
 ```
+`ref_fasta` is the default reference genome file directory, or you can customize it. You need to download:    
+
+**hg19.fa** can be downloaded from UCSC [hg19.fa.gz](https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/) and indexed with `samtools faidx`
+
+**hg38.fa** can be downloaded from NCBI [GRCh38_no_alt_analysis_set.fna.gz](http://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/seqs_for_alignment_pipelines.ucsc_ids/) and indexed with `samtools faidx`
 
 ## OPTIONS
 
