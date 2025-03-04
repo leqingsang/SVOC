@@ -7,6 +7,38 @@ SVOC (Somatic Variant Oncogenicity Classifier) is a bioinformatics software tool
 2. You need install [ANNOVAR](http://annovar.openbioinformatics.org/en/latest/) (version >= 2016-02-01) and [TransVar](https://github.com/zwdzwd/transvar) (version >= 2.5.10.20211024).
 3. SVOC uses [AutoPVS1](https://github.com/JiguangPeng/autopvs1) to determine the effect of variants (nonsense, frameshift, canonical ±1 or 2 splice sites, initiation codon, single-exon or multiexon deletion) on gene function. Although the AutoPVS1 algorithm is integrated into the SVOC project, the required resources for its execution (such as VEP, its cache, and FASTA files) need to be pre-installed.
 
+#### VEP Installation
+```bash
+git clone https://github.com/Ensembl/ensembl-vep.git
+cd ensembl-vep
+git pull
+git checkout release/104
+perl INSTALL.pl
+```
+
+#### VEP cache and faste files
+VEP cache and faste files can be automatically downloaded and configured using [INSTALL.pl](https://www.ensembl.org/info/docs/tools/vep/script/vep_download.html#installer). You can also download and set up them manually:
+
+```bash
+r=104
+FTP='ftp://ftp.ensembl.org/pub/'
+
+# indexed vep cache
+cd $HOME/.vep
+wget $FTP/release-${r}/variation/indexed_vep_cache/homo_sapiens_refseq_vep_${r}_GRCh38.tar.gz
+wget $FTP/release-${r}/variation/indexed_vep_cache/homo_sapiens_refseq_vep_${r}_GRCh37.tar.gz
+tar xzf homo_sapiens_vep_${r}_GRCh37.tar.gz
+tar xzf homo_sapiens_vep_${r}_GRCh38.tar.gz
+
+# fasta
+cd $HOME/.vep/homo_sapiens_refseq/${r}_GRCh37/
+wget $FTP/grch37/current/fasta/homo_sapiens/dna/Homo_sapiens.GRCh37.dna.primary_assembly.fa.gz
+tar xzf Homo_sapiens.GRCh37.dna.primary_assembly.fa.gz
+
+cd $HOME/.vep/homo_sapiens_refseq/${r}_GRCh38/
+wget $FTP/current_fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+tar xzf Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+
 ## OPTIONS
 
 - --version             
