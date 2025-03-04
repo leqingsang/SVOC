@@ -69,13 +69,13 @@ database_names = refGene avsnp151 dbnsfp47a_interpro clinvar_20240917 intervar_2
 
 `gnomadv2` is the default gnomad v2.1.1 file directory, or you can customize it. You need to download: 
 
-- **gnomad.genomes.r2.1.1.sites.liftover_grch38.vcf.bgz** can be downloaded from [genomes.liftover_grch38.vcf.bgz](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/liftover_grch38/vcf/genomes/gnomad.genomes.r2.1.1.sites.liftover_grch38.vcf.bgz) and TBI from [genomes.liftover_grch38.vcf.bgz.tbi](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/liftover_grch38/vcf/genomes/gnomad.genomes.r2.1.1.sites.liftover_grch38.vcf.bgz.tbi)
-
-- **gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz** can be downloaded from [exomes.liftover_grch38.vcf.bgz](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/liftover_grch38/vcf/exomes/gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz) and TBI from [exomes.liftover_grch38.vcf.bgz.tbi](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/liftover_grch38/vcf/exomes/gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz.tbi)
-
 - **gnomad.genomes.r2.1.1.sites.vcf.bgz** can be downloaded from [genomes.bgz](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/vcf/genomes/gnomad.genomes.r2.1.1.sites.vcf.bgz) and TBI from [genomes.bgz.tbi](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/vcf/genomes/gnomad.genomes.r2.1.1.sites.vcf.bgz.tbi)
 
 - **gnomad.exomes.r2.1.1.sites.vcf.bgz** can be downloaded from [exomes.bgz](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/vcf/exomes/gnomad.exomes.r2.1.1.sites.vcf.bgz) and TBI from [exomes.bgz.tbi](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/vcf/exomes/gnomad.exomes.r2.1.1.sites.vcf.bgz.tbi)
+
+- **gnomad.genomes.r2.1.1.sites.liftover_grch38.vcf.bgz** can be downloaded from [genomes.liftover_grch38.vcf.bgz](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/liftover_grch38/vcf/genomes/gnomad.genomes.r2.1.1.sites.liftover_grch38.vcf.bgz) and TBI from [genomes.liftover_grch38.vcf.bgz.tbi](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/liftover_grch38/vcf/genomes/gnomad.genomes.r2.1.1.sites.liftover_grch38.vcf.bgz.tbi)
+
+- **gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz** can be downloaded from [exomes.liftover_grch38.vcf.bgz](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/liftover_grch38/vcf/exomes/gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz) and TBI from [exomes.liftover_grch38.vcf.bgz.tbi](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/liftover_grch38/vcf/exomes/gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz.tbi)
 
 ## OPTIONS
 
