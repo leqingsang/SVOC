@@ -5,7 +5,7 @@ SVOC (Somatic Variant Oncogenicity Classifier) is a bioinformatics software tool
 
 1. You need install Python version >= 3.11.5.
 2. You need install [ANNOVAR](http://annovar.openbioinformatics.org/en/latest/) (version >= 2016-02-01) and [TransVar](https://github.com/zwdzwd/transvar) (version >= 2.5.10.20211024).
-3. SVOC uses [AutoPVS1](https://github.com/JiguangPeng/autopvs1) to determine the effect of variants (nonsense, frameshift, canonical ±1 or 2 splice sites, initiation codon, single-exon or multiexon deletion) on gene function. Although the AutoPVS1 algorithm is integrated into the SVOC project, the required resources for its execution (such as VEP, its cache, and FASTA files) need to be pre-installed.
+3. SVOC uses [AutoPVS1](https://github.com/JiguangPeng/autopvs1) to determine the effect of variants (nonsense, frameshift, canonical ±1 or 2 splice sites, initiation codon, single-exon or multiexon deletion) on gene function. Although the AutoPVS1 algorithm is integrated into the SVOC project (`SVOC/modules/autopvs1`), the required resources for its execution (such as VEP, its cache, and FASTA files) need to be pre-installed.
 
     - VEP Installation
     ```bash
