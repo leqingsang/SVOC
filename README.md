@@ -67,6 +67,8 @@ database_names = refGene avsnp151 dbnsfp47a_interpro clinvar_20240917 intervar_2
 
 - **hg38.fa** can be downloaded from NCBI [GRCh38_no_alt_analysis_set.fna.gz](http://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/seqs_for_alignment_pipelines.ucsc_ids/) and indexed with `samtools faidx`
 
+- **Note:** The reference genome file also needs to be placed in the `SVOC/modules/autopvs1/data directory` to meet the needs of autopvs1 running.
+
 `gnomadv2` is the default gnomad v2.1.1 file directory, or you can customize it. You need to download: 
 
 - **gnomad.genomes.r2.1.1.sites.vcf.bgz** can be downloaded from [genomes.bgz](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/vcf/genomes/gnomad.genomes.r2.1.1.sites.vcf.bgz) and TBI from [genomes.bgz.tbi](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/vcf/genomes/gnomad.genomes.r2.1.1.sites.vcf.bgz.tbi)
