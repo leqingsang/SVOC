@@ -61,7 +61,7 @@ annovar_database_locat = /annovar/humandb
 # check if database file exists
 database_names = refGene avsnp151 dbnsfp47a_interpro clinvar_20240917 intervar_20180118 dbnsfp47a dbscsnv11
 ```
-`ref_fasta` is the default reference genome file directory, or you can customize it. You need to download:    
+`ref_fasta` is the default directory for reference genome file, or you can customize it. You need to download:    
 
 - **hg19.fa** can be downloaded from UCSC [hg19.fa.gz](https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/) and indexed with `samtools faidx`
 
@@ -69,7 +69,7 @@ database_names = refGene avsnp151 dbnsfp47a_interpro clinvar_20240917 intervar_2
 
 - **Note:** The reference genome file also needs to be placed in `SVOC/modules/autopvs1/data` to meet the needs of autopvs1 running.
 
-`gnomadv2` is the default gnomad v2.1.1 file directory, or you can customize it. You need to download: 
+`gnomadv2` is the default directory for gnomad v2.1.1 file, or you can customize it. You need to download: 
 
 - **gnomad.genomes.r2.1.1.sites.vcf.bgz** can be downloaded from [genomes.bgz](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/vcf/genomes/gnomad.genomes.r2.1.1.sites.vcf.bgz) and TBI from [genomes.bgz.tbi](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/vcf/genomes/gnomad.genomes.r2.1.1.sites.vcf.bgz.tbi)
 
