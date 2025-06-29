@@ -124,7 +124,7 @@ database location/dir for the Annovar annotation datasets
 
 ## HOW DOES IT WORK
 
-SVOC accepts unannotated input files in VCF format, where each line corresponds to one somatic variant. SVOC will call ANNOVAR and TransVar to generate necessary annotations. SVOC automatically scores all 17 criteria and calculates the total score of the variant based on the applicable rules defined in the guidelines. The oncogenicity category is then assigned according to the total score: ≥10 points for Oncogenic, 6–9 points for Likely Oncogenic, 0–5 points for VUS, -1 to -6 points for Likely Benign, and ≤-7 points for Benign. The output file can be formatted as JSON, CSV, or TXT, with each line corresponding to one somatic variant.
+SVOC accepts unannotated input files in VCF format, where each line corresponds to one somatic variant. SVOC will call ANNOVAR and TransVar to generate necessary annotations. Then, it automatically scores all 17 criteria and calculates the total score of the variant based on the applicable rules defined in the guidelines. The oncogenicity category is finally assigned according to the total score: ≥10 points for Oncogenic, 6–9 points for Likely Oncogenic, 0–5 points for VUS, -1 to -6 points for Likely Benign, and ≤-7 points for Benign. The output file can be formatted as JSON, CSV, or TXT, with each line corresponding to one somatic variant.
 
 ## Web server
 https://svoc.premedkb.cn
