@@ -1,10 +1,9 @@
 <div align="center">    
     
-![Teaser image](./SVOC_LOGO.png)
+![Teaser image](./figures/SVOC_LOGO.png)
 
 
 </div>
-SVOC () is a resource offering somatic variant oncogenicity classification based on ClinGen/CGC/VICC guidelines.
 
 ## PREREQUISITE
 
