@@ -123,11 +123,13 @@ def isOP4(inGnomAD, MAF, gene, Max_AC, Max_AN):
     elif gene == "TP53" and not inGnomAD:
         return True
     elif inGnomAD and gene not in ["CDH1", "PTEN", "TP53"]:
-        if MAF < 0.0005:
+        if MAF < 0.005:
             return True
         else:
             return False
-    elif not inGnomAD and gene not in ["CDH1", "PTEN", "TP53"]:
+    # elif not inGnomAD and gene not in ["CDH1", "PTEN", "TP53"]:
+    #     return True
+    elif not inGnomAD:
         return True
     else:
         return False
@@ -240,80 +242,85 @@ def isSBS2(vcep_BS3, oncokb_O, oncokb_N, expertfunc_OS2, expertfunc_SBS2):
 
 # Predictive data: SBP2、OVS1
 def isSBP2(var_type, SpliceAI_pred, dbscSNV_ada_score, dbscSNV_rf_score):
-    if var_type == "Synonymous" and (SpliceAI_pred, dbscSNV_ada_score, dbscSNV_rf_score):
+    if var_type == "Synonymous" and NotAffectSplicing(SpliceAI_pred, dbscSNV_ada_score, dbscSNV_rf_score):
         return True
     else:
         return False
 
 
-def isOVS1(chr, pos, ref, alt, gDNA, isTSG):
+def isOVS1(chr, pos, ref, alt, gDNA, isTSG, buildver, vPos, vRef, vAlt):
     chr = str(chr)
     pos = str(pos)
     ref = str(ref)
     alt = str(alt)
+    vPos = str(vPos)
+    vRef = str(vRef)
+    vAlt = str(vAlt)
     isOVS1 = False
     strength = ''
     consequence = ''
-    if 'ins' not in gDNA and 'del' in gDNA:
+    if 'ins' not in gDNA and 'del' in gDNA: # deletion
         if '_' in gDNA:
             parts = pos.split('_')
             start = str(parts[0])
             end = str(parts[1])
             var = chr + '-' + start + '-' + end +'-DEL'
-            demo = AutoPVS1CNV(var, 'hg19')
+            demo = AutoPVS1CNV(var, buildver)
             consequence = demo.vep_consequence
-            if demo.pvs1.strength_raw != "Unmet" and isTSG:
+            if str(demo.pvs1.strength_raw) != 'Strength.Unmet' and isTSG:
                 isOVS1 = True
                 strength = demo.pvs1.strength_raw
                 return isOVS1, strength, consequence
             else:
                 return isOVS1, strength, consequence
-        else:# Single site deletion
+        else: # Single site deletion
             var = chr + '-' + pos + '-' + pos +'-DEL'
-            demo = AutoPVS1CNV(var, 'hg19')
+            demo = AutoPVS1CNV(var, buildver)
             consequence = demo.vep_consequence
-            if demo.pvs1.strength_raw != "Unmet" and isTSG:
+            if str(demo.pvs1.strength_raw) != 'Strength.Unmet' and isTSG:
                 isOVS1 = True
                 strength = demo.pvs1.strength_raw
                 return isOVS1, strength, consequence
             else:
                 return isOVS1, strength, consequence
-    elif 'dup' in gDNA:
-        if '_' in gDNA:# Regional duplication
+    elif 'dup' in gDNA: # duplication
+        if '_' in gDNA: # Regional duplication
             parts = pos.split('_')
             start = str(parts[0])
             end = str(parts[1])
             var = chr + '-' + start + '-' + end +'-DUP'
-            demo = AutoPVS1CNV(var, 'hg19')
+            demo = AutoPVS1CNV(var, buildver)
             consequence = demo.vep_consequence
-            if demo.pvs1.strength_raw != "Unmet" and isTSG:
+            if str(demo.pvs1.strength_raw) != 'Strength.Unmet' and isTSG:
                 isOVS1 = True
                 strength = demo.pvs1.strength_raw
                 return isOVS1, strength, consequence
             else:
                 return isOVS1, strength, consequence
-        else:# Single site duplication
+        else: # Single site duplication
             var = chr + '-' + pos + '-' + pos +'-DUP'
-            demo = AutoPVS1CNV(var, 'hg19')
+            demo = AutoPVS1CNV(var, buildver)
             consequence = demo.vep_consequence
-            if demo.pvs1.strength_raw != "Unmet" and isTSG:
+            if str(demo.pvs1.strength_raw) != 'Strength.Unmet' and isTSG:
                 isOVS1 = True
                 strength = demo.pvs1.strength_raw
                 return isOVS1, strength, consequence
             else:
                 return isOVS1, strength, consequence
-    elif 'delins' not in gDNA and ref != '-' and alt != '-':
-        var = chr + '-' + pos + '-' + ref + '-' + alt
-        demo = AutoPVS1(var, 'hg19')
+    else: # delins;ins;SNV
+        var = chr + '-' + vPos + '-' + vRef + '-' + vAlt
+        print(var)
+        demo = AutoPVS1(var, buildver)
         consequence = demo.consequence
-        if demo.islof and isTSG:
-            isOVS1 = True
-            strength = demo.pvs1.strength_raw
-            return isOVS1, strength, consequence
+        if isTSG and demo.islof:
+            if str(demo.pvs1.strength_raw) != 'Strength.Unmet':
+                isOVS1 = True
+                strength = demo.pvs1.strength_raw
+                return isOVS1, strength, consequence
+            else:
+                return isOVS1, strength, consequence
         else:
-            return isOVS1, strength, consequence
-    else:
-        return isOVS1, strength, consequence
+            return isOVS1, strength, consequence                    
 
 # OM1、OM2
 def isOM1(domain_name):
@@ -326,3 +333,24 @@ def isOM2(isONG, isTSG, var_type):
         return True
     else:
         return False
+
+# OS1、OM4、OP2
+def isOS1(HasSameAAchange):
+    if HasSameAAchange:
+        return True
+    else:
+        return False
+
+def isOM4(SameAAresidue, GranthmsDistance, GranthmsDistance_SameAAresidue):
+    if SameAAresidue:
+        if GranthmsDistance >= GranthmsDistance_SameAAresidue:
+            return True
+    else:
+        return False
+
+def isOP2(isSingleGeneticEtiology):
+    if isSingleGeneticEtiology:
+        return True
+    else:
+        return False
+
