@@ -138,4 +138,8 @@ https://svoc.premedkb.cn
 SVOC is free for non-commercial use without warranty. Users need to obtain licenses such as SpliceAI, TransVar, AutoPVS1, VEP and ANNOVAR by themselves. Please contact the authors for commercial use.
 
 ## REFERENCE
-[The ClinGen/CGC/VICC 2022 standards](https://pubmed.ncbi.nlm.nih.gov/36063163/) Horak P, Griffith M, Danos AM, et al. Standards for the classification of pathogenicity of somatic variants in cancer (oncogenicity): Joint recommendations of Clinical Genome Resource (ClinGen), Cancer Genomics Consortium (CGC), and Variant Interpretation for Cancer Consortium (VICC). Genet Med. 2022;24(9):1991. doi:10.1016/j.gim.2022.07.001
+Horak P, Griffith M, Danos AM, et al. [Standards for the classification of pathogenicity of somatic variants in cancer (oncogenicity): Joint recommendations of Clinical Genome Resource (ClinGen), Cancer Genomics Consortium (CGC), and Variant Interpretation for Cancer Consortium (VICC)](https://pubmed.ncbi.nlm.nih.gov/36063163/). <i>Genet Med</i>. 2022;24(9):1991. [doi:10.1016/j.gim.2022.07.001](https://pubmed.ncbi.nlm.nih.gov/36063163/)
+
+## Contact
+For technical questions please open issue, or contact:
+- Leqing Sang <lqsang25@m.fudan.edu.cn>
