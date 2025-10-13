@@ -1,19 +1,16 @@
-#!/root/anaconda3/envs/svocenv/bin/python # Change to your Python interpreter path
-import os, asyncio, re, getopt, sys, pandas as pd, textwrap, subprocess, copy, logging, io, time, platform, optparse, gzip, glob
+#!/root/anaconda3/envs/svocenv/bin/python
+import os, asyncio, re, getopt, sys, pandas as pd, textwrap, subprocess, copy, logging, io, time, platform, optparse, gzip, glob, json, configparser
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' 
 import modules.db_handler as db_handler
-import modules.check_evidence as function
+import modules.check_evidence as check_evidence
 import modules.spliceai_prediction as spliceai
-from modules.query_gnomad import query_gnomAD_api, query_gnomAD_local
+from modules.query_gnomad import query_gnomAD_local
 from modules.generate_input import transvar_transcript_filter, merge_transvar_annovar
-if platform.python_version()< '3.0.0' :
-    import ConfigParser
-else:
-    import configparser
+from modules.output_filter import svoc_output_filter
 
 prog="SVOC"
-version = """Version: 20250218
-Written by Leqing SANG, yqsang23@m.fudan.edu.cn. 
+version = """Version: 20250606
+Written by Leqing SANG, lqsang25@m.fudan.edu.cn. 
 SVOC is free for non-commercial use without warranty.
 Please contact the author for commercial use.
 Copyright (C) 2025 Ying YU Lab.
@@ -67,12 +64,31 @@ def ConfigSectionMap(config,section):
             paras[option] = None
     return
 
-def main():
-    if platform.python_version()< '3.0.0'  :
-        config=ConfigParser.ConfigParser()
-    else:
-        config=configparser.ConfigParser()
+def getAAchangePart(AAchange_single):
+    refAA = ''
+    posAA = ''
+    altAA = ''
+    startAA = ''
+    endAA = ''
+    AAchange_position = ''
+    if ('del' in AAchange_single or 'delins' in AAchange_single or 'ins' in AAchange_single or 'dup' in AAchange_single) and '_' in AAchange_single:
+        startAA = re.match(r"p\.[A-Z](\d+)_[A-Z](\d+)", AAchange_single).group(1)
+        endAA = re.search(r"p\.[A-Z](\d+)_[A-Z](\d+)", AAchange_single).group(2)
+        posAA = startAA + '_' + endAA
+        refAA = re.match(r"p\.([A-Z])\d+_([A-Z])\d+", AAchange_single).group(1) + re.match(r"p\.([A-Z])\d+_([A-Z])\d+", AAchange_single).group(2)
+        altAA = ''
+        AAchange_position = re.match(r"p\.[A-Z]\d+_[A-Z]\d+", AAchange_single).group(0)
+    elif AAchange_single:
+        refAA = re.search(r"p\.([A-Za-z]|\*)(\d+)([A-Za-z]|\*|\?|\=)", AAchange_single).group(1)
+        posAA = re.search(r"p\.([A-Za-z]|\*|)(\d+)([A-Za-z]|\*|\?|\=)", AAchange_single).group(2)
+        altAA = re.search(r"p\.([A-Za-z]|\*|)(\d+)([A-Za-z]|\*|\?|\=)", AAchange_single).group(3)
+        startAA = posAA
+        endAA = posAA
+        AAchange_position = 'p.'+ refAA + posAA
+    return refAA, posAA, altAA, startAA, endAA, AAchange_position
 
+def main():
+    config=configparser.ConfigParser()
     parser = optparse.OptionParser(version=version, usage=usage)
     parser.add_option("-c", "--config", dest="config", action="store",
                   help="The config file of all options. It is for your own configure file.You can edit all the options in the configure and if you use this options,you can ignore all the other options bellow.", metavar="config.ini")
@@ -141,8 +157,9 @@ def main():
         paras['output_type']=options.output_type
     if options.database_svoc != None:
         paras['database_svoc']=options.database_svoc
-        paras['mane'] = paras['database_intervar']+'/MANE.GRCh38.v1.4.ensembl_genomic.gtf'
-        paras['ref_fasta'] = paras['database_intervar']+'/ref_fasta'
+        paras['mane'] = paras['database_svoc']+'/MANE.GRCh38.v1.4.refseq_genomic.gtf.gz'
+        paras['ref_fasta'] = paras['database_svoc']+'/ref_fasta'
+        paras['gnomadv2'] = paras['database_svoc']+'/gnomadv2'
         
     if not os.path.isfile(paras['inputfile']):
         print("Error: Your input file [ %s ] is not here,please check the path of your input file." % paras['inputfile'])
@@ -159,53 +176,81 @@ def main():
     annovar_file = f"{output_prefix}.{paras['buildver']}_multianno.txt"
     transvar_filter_file = f"{output_prefix}.{paras['buildver']}_transvar.filter.txt"
     mane_gtf_file = paras['mane']
+    mark_file = f"{output_prefix}.{paras['buildver']}_transvar_mark.txt"
+    if buildver == 'hg19':
+        ref_fasta_file = f"{paras['ref_fasta']}/hg19.fa"
+        gnomadv2_genomes = f"{paras['gnomadv2']}/gnomad.genomes.r2.1.1.sites.vcf.bgz"
+        gnomadv2_exomes = f"{paras['gnomadv2']}/gnomad.exomes.r2.1.1.sites.vcf.bgz"
+    elif buildver == 'hg38':
+        ref_fasta_file = f"{paras['ref_fasta']}/hg38.fa"
+        gnomadv2_genomes = f"{paras['gnomadv2']}/gnomad.genomes.r2.1.1.sites.liftover_grch38.vcf.bgz"
+        gnomadv2_exomes = f"{paras['gnomadv2']}/gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz"
     svoc_input_file = f"{output_prefix}.{paras['buildver']}_svocinput.txt"
     svoc_output_json_file = f"{output_prefix}.{paras['buildver']}_svocoutput.json"
     svoc_output_csv_file = f"{output_prefix}.{paras['buildver']}_svocoutput.csv"
     svoc_output_txt_file = f"{output_prefix}.{paras['buildver']}_svocoutput.txt"
-
-    # Annotated by ANNOVAR and TransVar
-    # Execute ANNOVAR command
-    annovar_command = (
-        f"perl {table_annovar} {vcf_input_file} {annovar_db_path} "
-        f"-vcfinput -build {buildver} -out {output_prefix} "
-        "-protocol refGene,avsnp151,dbnsfp47a_interpro,clinvar_20240917,intervar_20180118,dbnsfp47a,dbscsnv11 "
-        "-operation g,f,f,f,f,f,f -nastring . -thread 2 -remove "
-        "-arg '-hgvs,\",\",\",\",\",\"'"
-    )
-    #print(annovar_command)
-    try:
-        print("Running ANNOVAR annotation...")
-        subprocess.run(annovar_command, shell=True, check=True)
-        print("ANNOVAR annotation completed.")
-    except subprocess.CalledProcessError as e:
-        print(f"Error running ANNOVAR command: {e}")
     
-    # Execute TransVar command
-    transvar_command = (
-        f"transvar ganno --vcf {vcf_input_file} --refseq | "
-        f"awk '{{gsub(/  +/, \"\\t\", $0); print}}' > {transvar_file}"
-    )
-    #print(transvar_command)
-    try:
-        print("Running TransVar annotation...")
-        subprocess.run(transvar_command, shell=True, check=True)
-        print("TransVar annotation completed.")
-    except subprocess.CalledProcessError as e:
-        print(f"Error running TransVar command: {e}")
-    # # Filter TransVar annotated transcript
-    transvar_transcript_filter(transvar_file, transvar_filter_file, mane_gtf_file)
-    print("TransVar transcripts filtering completed.")
+    if not os.path.exists(svoc_input_file):
+        print("Start generating SVOC input file...")
+        # Annotated by ANNOVAR and TransVar
+        if not os.path.exists(annovar_file):
+#            annovar_command = (
+#                f"perl {table_annovar} {vcf_input_file} {annovar_db_path} "
+#                f"-vcfinput -build {buildver} -out {output_prefix} "
+#                "-protocol refGene,avsnp151,dbnsfp47a_interpro,clinvar_20240917,intervar_20180118,dbnsfp47a,dbscsnv11 "
+#                "-operation g,f,f,f,f,f,f -nastring . -thread 2 -remove "
+#                "-arg '-hgvs,\",\",\",\",\",\"'"
+#            )
+            annovar_command = (
+                f"perl {table_annovar} {vcf_input_file} {annovar_db_path} "
+                f"-vcfinput -build {buildver} -out {output_prefix} "
+                "-protocol refGene,dbnsfp47a,dbscsnv11 "
+                "-operation g,f,f -nastring . -thread 1 -remove "
+                "-arg '-hgvs,\",\"'"
+            )
+            # Execute ANNOVAR command
+            try:
+                print("Running ANNOVAR annotation...")
+                subprocess.run(annovar_command, shell=True, check=True)
+                print("ANNOVAR annotation completed.")
+            except subprocess.CalledProcessError as e:
+                print(f"Error running ANNOVAR command: {e}")
+        else:
+            print("ANNOVAR annotation file already exists.")
 
-    # Merge ANNOVAR and TransVar into SVOC input file
-    merge_transvar_annovar(transvar_filter_file, annovar_file, svoc_input_file)
-    print("SVOC input file has been generated.")
-
+        if not os.path.exists(transvar_file):
+            transvar_command = (
+                f"transvar ganno --vcf {vcf_input_file} --refseq --refversion {buildver}| "
+                f"awk '{{gsub(/  +/, \"\\t\", $0); print}}' > {transvar_file}"
+            )
+            # Execute TransVar command
+            try:
+                print("Running TransVar annotation...")
+                subprocess.run(transvar_command, shell=True, check=True)
+                print("TransVar annotation completed.")
+            except subprocess.CalledProcessError as e:
+                print(f"Error running TransVar command: {e}")
+        else:
+            print("TransVar annotation file already exists.")
+        
+        if not os.path.exists(transvar_filter_file):
+            # Filter TransVar annotated transcript
+            transvar_transcript_filter(transvar_file, transvar_filter_file, mane_gtf_file, mark_file)
+            print("Transcript filtering completed.")
+        else:
+            print("Transcript filtering has already been completed.")
+        
+        merge_transvar_annovar(transvar_filter_file, annovar_file, svoc_input_file)
+        print("SVOC input file generation completed.")
+    else:
+        print("SVOC input file already exists.")
 # ----------------------------Part 1: Processing tsv input information.-----------------------------
 
     df_output = pd.DataFrame(
         columns=['Variant_ID', 
                 'Gene',
+                'Transcript',
+                'Transcript_tag',
                 'Variant_Information',
                 'Point', 
                 'Classification', 
@@ -230,16 +275,28 @@ def main():
                 'SBS1','SBS1_Basis',
                 'SBS2','SBS2_Basis',
                 'SBP1','SBP1_Basis',
-                'SBP2','SBP2_Basis'])
-    row_index = 0  # Initialize row index.
+                'SBP2','SBP2_Basis',
+                'vChr','vPos','vrsID','vRef','vAlt'
+                ])
     df = pd.read_csv(svoc_input_file, sep='\t')
     for index, row in df.iterrows():
+        vChr = row['vChr']
+        vPos = row['vPos']
+        vrsID = row['vrsID']
+        vRef = row['vRef']
+        vAlt = row['vAlt']
         Variant_ID = index+1
         Variant_Information = row['coordinate']
-        gene = row['gene']
+        gene = row['Gene.refGene'] # annovar gene
         Transcript = re.search(r'(\w+)_\d+', row['transcript']).group(0) if isinstance(row['transcript'], str) and re.search(r'(\w+)_\d+', row['transcript'])  else ''
+        Transcript_tag = row['transcript_tag']
         var_type = row['info'].split('CSQN=')[1].split(';')[0]
         AAchange_single = re.search(r'p\.([^/]+)', row['coordinate']).group() if isinstance(row['coordinate'], str) and re.search(r'p\.([^/]+)', row['coordinate']) else ''
+        if AAchange_single == "p.(=)": # Synonymous
+            AAchange_single = re.search(r'p\.(.+)', row['AAChange.refGene'].split(',')[0]).group() if isinstance(row['AAChange.refGene'], str) and re.search(r'p\.(.+)', row['AAChange.refGene'].split(',')[0]) else ''
+        # row['coordinate'] = chr7:g.140477838_140477852del15/c.1457_1471del15/p.N486_P490delNVTAP
+        if 'del' in AAchange_single and 'delins' not in AAchange_single:
+            AAchange_single = re.match(r'[^del]*del', AAchange_single).group()
         cDNA = re.search(r'c\.([^/]+)', row['coordinate']).group(0) if isinstance(row['coordinate'], str) and re.search(r'c\.([^/]+)', row['coordinate']) else ''
         gDNA = re.search(r'g\.([^/]+)', row['coordinate']).group(0) if isinstance(row['coordinate'], str) and re.search(r'g\.([^/]+)', row['coordinate']) else ''
         refAA = ''  
@@ -247,31 +304,20 @@ def main():
         altAA = ''  
         if AAchange_single:
             aa = re.search(r'p\.(.*)', AAchange_single).group(1) # without 'p.', eg：V600E
+            refAA, posAA, altAA, startAA, endAA, AAchange_position = getAAchangePart(AAchange_single)
         else:
             aa = ''
-        chr = row['Chr'] # int
-        pos = '' # str
-        ref = row['Ref']
-        alt = row['Alt']
-        
-        if ('del' in AAchange_single or 'delins' in AAchange_single) and '_' in AAchange_single:
-            startAA = re.match(r"p\.[A-Z](\d+)_[A-Z](\d+)", AAchange_single).group(1)
-            endAA = re.search(r"p\.[A-Z](\d+)_[A-Z](\d+)", AAchange_single).group(2)
-            posAA = startAA + '_' + endAA
-            refAA = re.match(r"p\.([A-Z])\d+_([A-Z])\d+", AAchange_single).group(1) + re.match(r"p\.([A-Z])\d+_([A-Z])\d+", AAchange_single).group(2)
-            altAA = ''
-        elif AAchange_single:
-            refAA = re.search(r"p\.([A-Za-z]|\*)(\d+)([A-Za-z]|\*|\?|\=)", AAchange_single).group(1)
-            posAA = re.search(r"p\.([A-Za-z]|\*|)(\d+)([A-Za-z]|\*|\?|\=)", AAchange_single).group(2)
-            altAA = re.search(r"p\.([A-Za-z]|\*|)(\d+)([A-Za-z]|\*|\?|\=)", AAchange_single).group(3)
-            startAA = posAA
-            endAA = posAA
-        else:
             refAA = ''
             posAA = ''
             altAA = ''
             startAA = ''
             endAA = ''
+            AAchange_position = ''
+        chr = row['Chr'] # int
+        pos = '' # str
+        ref = row['Ref']
+        alt = row['Alt']
+
         # Obtain the position of base changes, including two formats:：g.140453136_140453137delinsTT or g.140453134T>C
         match_gDNA = re.match(r"g\.(\d+(?:_\d+)?)(?:([A-Z])>([A-Z]))?", gDNA)
         if match_gDNA:
@@ -284,7 +330,7 @@ def main():
         oncokb_class = '/' # OncoKB_Classification
         oncokb_Description = '/' # OncoKB_Description
         expert_experience = '/' # Expert_Experience
-        Functional_Result_Source = '/' # Functional_Result_Source：Expert/ClinGen/OncoKB/none
+        Functional_Result_Source = '/' # Expert/ClinGen/OncoKB/none
         expertfunc_class = '/'
         expertfunc_Description = '/'
 
@@ -336,20 +382,43 @@ def main():
         if aa != '':
             isCancerHotspots, CancerHotspots_sample, CancerHotspots_count= db_handler.getHotspots(gene, refAA, altAA, posAA, aa)
         if AAchange_single != '':
-            isCOSMICHotspots, COSMIC_sample, COSMIC_count = db_handler.getCOSMICHotspots(gene, AAchange_single)
-        isExpertCuratedHotspots, ExpertEvidenceCode, ExpertCuratedHotspots_Basis = db_handler.getExpertCuratedHotspots(gene, gDNA)
-
-        result = query_gnomAD_local(chr, pos, ref, alt, "/mnt/gnomad/gnomad.exomes.r2.1.1.sites.vcf.bgz") if query_gnomAD_local(chr, pos, ref, alt, "/mnt/gnomad/gnomad.exomes.r2.1.1.sites.vcf.bgz") else query_gnomAD_local(chr, pos, ref, alt, "/mnt/gnomad/gnomad.genomes.r2.1.1.sites.vcf.bgz")
-        if result:
-            Continent, Max_AC, Max_AN, MAF = result
-            inGnomAD = True
+            isCOSMICHotspots, COSMIC_sample, COSMIC_count = db_handler.getCOSMICHotspots(gene, AAchange_single, AAchange_position)
+        isExpertCuratedHotspots, ExpertEvidenceCode, ExpertCuratedHotspots_Basis = db_handler.getExpertCuratedHotspots(gene, gDNA, buildver)
+        # gnomad_result = query_gnomAD_local(chr, pos, ref, alt, gnomadv2_exomes) if query_gnomAD_local(chr, pos, ref, alt, gnomadv2_exomes) else query_gnomAD_local(chr, pos, ref, alt, gnomadv2_genomes)
+        
+        inGnomAD = False
+        MAF = -1
+        Max_AC = 0
+        Max_AN = 0
+        
+        gnomad_result = query_gnomAD_local(chr, pos, ref, alt, gnomadv2_exomes)
+        if gnomad_result:
+            Continent, Max_AC, Max_AN, MAF = gnomad_result
+            if MAF == '.' and Max_AC == '.' and Max_AN == '.' and Continent == '.':
+                gnomad_result = query_gnomAD_local(chr, pos, ref, alt, gnomadv2_genomes)
         else:
+            gnomad_result = query_gnomAD_local(chr, pos, ref, alt, gnomadv2_genomes)
+
+        if gnomad_result:# not none
+            Continent, Max_AC, Max_AN, MAF = gnomad_result
+            if MAF != '.' and Max_AC != '.' and Max_AN != '.' and Continent != '.':
+                MAF = float(MAF)
+                Max_AC = int(Max_AC)
+                Max_AN = int(Max_AN)
+                inGnomAD = True
+            else: # not none and not all '.'
+                inGnomAD = False
+                MAF = -1
+                Max_AC = 0
+                Max_AN = 0
+        else: # none
             inGnomAD = False
             MAF = -1
             Max_AC = 0
             Max_AN = 0
+           
 
-        # Functional data information
+        # functional data information
         vcep_PS3 = False
         vcep_BS3 = False
         oncokb_O = False
@@ -376,11 +445,11 @@ def main():
         isONG = db_handler.isOncoGene(gene)
         isTSG = db_handler.isTSG(gene)
 
-        # Functional domain information
+        # functional domain information
         domain_name = db_handler.getOncokbDomain(gene,startAA,endAA)
 
         # Predictive evidence
-        isOVS1, OVS1_strength, consequence = function.isOVS1(chr, pos, ref, alt, gDNA, isTSG)
+        isOVS1, OVS1_strength, consequence = check_evidence.isOVS1(chr, pos, ref, alt, gDNA, isTSG, buildver)
         
         SIFT_pred = row['SIFT_pred']
         MutationAssessor_pred = row['MutationAssessor_pred']
@@ -391,7 +460,7 @@ def main():
         CADD_phred = row['CADD_phred']
         REVEL_pred = row['REVEL_score']
         # Splicing effect prediction
-        DS_AG, DS_AL, DS_DG, DS_DL = spliceai.getSpliceAI('chr'+str(chr), int(pos), str(ref), str(alt))
+        DS_AG, DS_AL, DS_DG, DS_DL = spliceai.getSpliceAI('chr'+str(chr), int(pos), str(ref), str(alt), buildver, ref_fasta_file)
         if max(DS_AG, DS_AL, DS_DG, DS_DL) >= 0.5:
             SpliceAI_pred = True
         else:
@@ -399,10 +468,53 @@ def main():
         dbscSNV_ada_score = row['dbscSNV_ADA_SCORE']
         dbscSNV_rf_score = row['dbscSNV_RF_SCORE']
 
+        # Single Genetic Etiology
+        isSingleGeneticEtiology, SingleGeneticEtiologyDescription = db_handler.getSingelGeneticEtiology(gene)
+
+        # Same amino acid change as a previously established oncogenic variant
+        HasSameAAchange = False
+        SameAAchangeDescription = ''
+        if AAchange_single != '':
+            HasSameAAchange,SameAAchangeDescription = db_handler.getSameAAchange(ref, alt, AAchange_single, gene, buildver)
+
+        # Missense variant at an amino acid residue where a different missense variant determined to be oncogenic
+        isOM4 = False
+        if ('del' not in AAchange_single) and ('delins' not in AAchange_single) and ('ins' not in AAchange_single) and ('dup' not in AAchange_single) and ('_' not in AAchange_single):
+            SameAAresidue = None
+            GranthmsDistance = 0
+            GranthmsDistance_SameAAresidue = 0
+            if AAchange_single != '' and refAA not in ['*', '?', '='] and altAA not in ['*', '?', '=']:
+                SameAAresidue = db_handler.getSameAAresidue(AAchange_single, gene, AAchange_position)
+            # Amino acid difference from reference amino acid should be greater or at least approximately the same as for missense change determined to be oncogenic.
+            if SameAAresidue:
+                #print(SameAAresidue)
+                GranthmsDistance = db_handler.getGranthmsDistance(refAA, altAA)
+                if isinstance(SameAAresidue, str):
+                    samerefAA, sameposAA, samealtAA, samestartAA, sameendAA, sameAAchange_position= getAAchangePart(SameAAresidue)
+                    if samerefAA not in ['*', '?', '='] and samealtAA not in ['*', '?', '=']:
+                        GranthmsDistance_SameAAresidue = db_handler.getGranthmsDistance(samerefAA, samealtAA)
+                        if GranthmsDistance >= GranthmsDistance_SameAAresidue:
+                            isOM4 = True
+                        else:
+                            isOM4 = False
+                elif isinstance(SameAAresidue, list) and all(isinstance(item, str) for item in SameAAresidue):
+                    for item in SameAAresidue:
+                        samerefAA, sameposAA, samealtAA, samestartAA, sameendAA, sameAAchange_position = getAAchangePart(item)
+                        if samerefAA not in ['*', '?', '='] and samealtAA not in ['*', '?', '=']:
+                            GranthmsDistance_SameAAresidue = db_handler.getGranthmsDistance(samerefAA, samealtAA)
+                            if GranthmsDistance >= GranthmsDistance_SameAAresidue:
+                                isOM4 = True
+                                SameAAresidue = item
+                                break
+                            else:
+                                isOM4 = False
+            else:
+                isOM4 = False
+
 
 # ----------------------Part Three: Scoring-----------------------------------
         # Evidence of computational tools
-        if function.isSBP1(SIFT_pred,
+        if check_evidence.isSBP1(SIFT_pred,
                            MutationAssessor_pred,
                            FATHMM_pred,
                            Polyphen2_HDIV_pred,
@@ -417,7 +529,7 @@ def main():
             point -= 1
             SBP1 = 1
             SBP1_Basis = 'SIFT_pred:'+str(SIFT_pred)+',MutationAssessor_pred:'+str(MutationAssessor_pred)+',FATHMM_pred:'+str(FATHMM_pred)+',Polyphen2_HDIV_pred:'+str(Polyphen2_HDIV_pred)+',Polyphen2_HVAR_pred:'+str(Polyphen2_HVAR_pred)+',MutationTaster_pred:'+str(MutationTaster_pred)+',SpliceAI_pred:'+str(SpliceAI_pred)+',CADD_phred:'+str(CADD_phred)+',REVEL_pred:'+str(REVEL_pred)+'dbscSNV_ada_score:'+str(dbscSNV_ada_score)+',dbscSNV_rf_score:'+str(dbscSNV_rf_score)
-        elif function.isOP1(SIFT_pred,
+        elif check_evidence.isOP1(SIFT_pred,
                             MutationAssessor_pred,
                             FATHMM_pred,
                             Polyphen2_HDIV_pred,
@@ -434,31 +546,32 @@ def main():
             OP1_Basis = 'SIFT_pred:'+str(SIFT_pred)+',MutationAssessor_pred:'+str(MutationAssessor_pred)+',FATHMM_pred:'+str(FATHMM_pred)+',Polyphen2_HDIV_pred:'+str(Polyphen2_HDIV_pred)+',Polyphen2_HVAR_pred:'+str(Polyphen2_HVAR_pred)+',MutationTaster_pred:'+str(MutationTaster_pred)+',SpliceAI_pred:'+str(SpliceAI_pred)+',CADD_phred:'+str(CADD_phred)+',REVEL_pred:'+str(REVEL_pred)+'dbscSNV_ada_score:'+str(dbscSNV_ada_score)+',dbscSNV_rf_score:'+str(dbscSNV_rf_score)
         
         # Population evidence
-        if function.isSBVS1(inGnomAD, MAF, gene, Max_AC, Max_AN):
+        if check_evidence.isSBVS1(inGnomAD, MAF, gene, Max_AC, Max_AN):
             standard = standard+'SBVS1;'
             point -= 8
             SBVS1 = 1
-            SBVS1_Basis = str(MAF) + ", "+ str(Max_AC) + "/" + str(Max_AN) +" alleles in the "+ Continent + " subpopulation of the gnomAD"
-        elif function.isSBS1(inGnomAD, MAF, gene, Max_AC, Max_AN):
+            SBVS1_Basis = "Allele frequency of " + str(MAF) + "("+ str(Max_AC) + "/" + str(Max_AN) +")" + " in the "+ Continent + " subpopulation of the gnomAD(v2.1.1 controls)."
+        elif check_evidence.isSBS1(inGnomAD, MAF, gene, Max_AC, Max_AN):
             standard = standard+'SBS1;'
             point -= 4
             SBS1 = 1
-            SBS1_Basis = str(MAF) + ", "+ str(Max_AC) + "/" + str(Max_AN) +" alleles in the "+ Continent + " subpopulation of the gnomAD"
-        elif function.isOP4(inGnomAD, MAF, gene, Max_AC, Max_AN):
+            SBS1_Basis = "Allele frequency of " + str(MAF) + "("+ str(Max_AC) + "/" + str(Max_AN) +")" + " in the "+ Continent + " subpopulation of the gnomAD(v2.1.1 controls)."
+        elif check_evidence.isOP4(inGnomAD, MAF, gene, Max_AC, Max_AN):
             standard = standard+'OP4;'
             if MAF < 0:
-                OP4_Basis = "Absent from controls (gnomAD v2.1.1)"
+                OP4_Basis = "Absent from controls (gnomAD v2.1.1)."
             else:
-                OP4_Basis =str(MAF) + ", extremely low frequency in gnomAD"
+                OP4_Basis =str(MAF) + ", extremely low frequency in gnomAD."
             point += 1
             OP4 = 1
             
         
         # Others
-        if function.isOM1(domain_name):
-            if not function.isOS3(isCancerHotspots, isCOSMICHotspots, isExpertCuratedHotspots, ExpertEvidenceCode, CancerHotspots_sample, CancerHotspots_count, COSMIC_sample, COSMIC_count):
+        if check_evidence.isOM1(domain_name):
+            if not check_evidence.isOS3(isCancerHotspots, isCOSMICHotspots, isExpertCuratedHotspots, ExpertEvidenceCode, CancerHotspots_sample, CancerHotspots_count, COSMIC_sample, COSMIC_count) and not check_evidence.isOS1(HasSameAAchange):
                 standard = standard+'OM1;'
                 point += 2
+                OM1 = 1
                 # May be located in multiple critical functional domains simultaneously, for example, MSH2's ['Muts_III ','Muts_IV'].
                 if isinstance(domain_name, str):
                     OM1_Basis = "Located in well-established functional domain: " + domain_name
@@ -466,7 +579,7 @@ def main():
                     OM1_Basis = "Located in well-established functional domain: " + "; ".join(domain_name)
 
 
-        if function.isOM2(isONG, isTSG, var_type):
+        if check_evidence.isOM2(isONG, isTSG, var_type):
             if not isOVS1:
                 standard = standard+'OM2;'
                 point += 2
@@ -477,20 +590,21 @@ def main():
                     OM2_Basis = "protein length due to stop-loss variants in a known tumor suppressor gene"
         
         # Cancer hotspots
-        if function.isOS3(isCancerHotspots, isCOSMICHotspots, isExpertCuratedHotspots, ExpertEvidenceCode, CancerHotspots_sample, CancerHotspots_count, COSMIC_sample, COSMIC_count):
-            standard = standard+'OS3;'
-            OS3 = 1
-            if isCancerHotspots:
-                OS3_Basis = "hotspot in cancerhotspots.org, AA position count is >= 50 (" + str(CancerHotspots_sample) + ") and AA change count is ≥ 10 (" + str(CancerHotspots_count) +")"
-            elif not isCancerHotspots and isCOSMICHotspots:
-                OS3_Basis = "hotspot in COSMIC, AA position count is >= 50 (" + str(COSMIC_sample) + ") and AA change count is ≥ 10 (" + str(COSMIC_count) +")"
-            elif not isCancerHotspots and not isCOSMICHotspots and isExpertCuratedHotspots:
-                OS3_Basis = ExpertCuratedHotspots_Basis
-            point += 4
+        if check_evidence.isOS3(isCancerHotspots, isCOSMICHotspots, isExpertCuratedHotspots, ExpertEvidenceCode, CancerHotspots_sample, CancerHotspots_count, COSMIC_sample, COSMIC_count):
+            if not check_evidence.isOS1(HasSameAAchange):
+                standard = standard+'OS3;'
+                OS3 = 1
+                if isCancerHotspots:
+                    OS3_Basis = "hotspot in cancerhotspots.org, AA position count is >= 50 (" + str(CancerHotspots_sample) + ") and AA change count is ≥ 10 (" + str(CancerHotspots_count) +")"
+                elif not isCancerHotspots and isCOSMICHotspots:
+                    OS3_Basis = "hotspot in COSMIC, AA position count is >= 50 (" + str(COSMIC_sample) + ") and AA change count is ≥ 10 (" + str(COSMIC_count) +")"
+                elif not isCancerHotspots and not isCOSMICHotspots and isExpertCuratedHotspots:
+                    OS3_Basis = ExpertCuratedHotspots_Basis
+                point += 4
 
 
-        elif function.isOM3(isCancerHotspots, isCOSMICHotspots, isExpertCuratedHotspots, ExpertEvidenceCode, CancerHotspots_sample, CancerHotspots_count, COSMIC_sample, COSMIC_count):
-            if not function.isOM1(domain_name):
+        elif check_evidence.isOM3(isCancerHotspots, isCOSMICHotspots, isExpertCuratedHotspots, ExpertEvidenceCode, CancerHotspots_sample, CancerHotspots_count, COSMIC_sample, COSMIC_count):
+            if not check_evidence.isOM1(domain_name) and not isOM4:
                 standard = standard+'OM3;'
                 point += 2
                 OM3 = 1
@@ -501,7 +615,7 @@ def main():
                 elif not isCancerHotspots and not isCOSMICHotspots and isExpertCuratedHotspots:
                     OM3_Basis = ExpertCuratedHotspots_Basis
 
-        elif function.isOP3(isCancerHotspots, isCOSMICHotspots, isExpertCuratedHotspots, ExpertEvidenceCode, CancerHotspots_sample, CancerHotspots_count, COSMIC_sample, COSMIC_count):
+        elif check_evidence.isOP3(isCancerHotspots, isCOSMICHotspots, isExpertCuratedHotspots, ExpertEvidenceCode, CancerHotspots_sample, CancerHotspots_count, COSMIC_sample, COSMIC_count):
             standard = standard+'OP3;'  
             point += 1
             OP3 = 1
@@ -513,29 +627,34 @@ def main():
                 OP3_Basis = ExpertCuratedHotspots_Basis
 
 
-        # Functional evidence
-        if function.isOS2(vcep_PS3, oncokb_O, oncokb_N, expertfunc_OS2, expertfunc_SBS2):
-            standard = standard+'OS2;'
-            point += 4
-            OS2 = 1
-            if expertfunc_OS2:
-                OS2_Basis = expertfunc_Description
-                Functional_Result_Source = 'Expert'
-            elif oncokb_O:
-                OS2_Basis = oncokb_Description
-                Functional_Result_Source = 'OncoKB'
-            else:
-                OS2_Basis = "PS3 in ClinGen VCEP."
-                Functional_Result_Source = 'ClinGen'
-        elif function.isSBS2(vcep_BS3, oncokb_O, oncokb_N, expertfunc_OS2, expertfunc_SBS2):
+        # functional evidence
+        if check_evidence.isOS2(vcep_PS3, oncokb_O, oncokb_N, expertfunc_OS2, expertfunc_SBS2):
+            if not check_evidence.isOS1(HasSameAAchange):
+                standard = standard+'OS2;'
+                point += 4
+                OS2 = 1
+                if expertfunc_OS2:
+                    OS2_Basis = expertfunc_Description.replace("\n", " ").replace("\r", " ")
+                    OS2_Basis = " ".join(OS2_Basis.split())
+                    Functional_Result_Source = 'Expert'
+                elif oncokb_O:
+                    OS2_Basis = oncokb_Description.replace("\n", " ").replace("\r", " ")
+                    OS2_Basis = " ".join(OS2_Basis.split())
+                    Functional_Result_Source = 'OncoKB'
+                else:
+                    OS2_Basis = "PS3 in ClinGen VCEP."
+                    Functional_Result_Source = 'ClinGen'
+        elif check_evidence.isSBS2(vcep_BS3, oncokb_O, oncokb_N, expertfunc_OS2, expertfunc_SBS2):
             standard = standard+'SBS2;'
             point -= 4
             SBS2 = 1
             if expertfunc_SBS2:
-                SBS2_Basis = expertfunc_Description
+                SBS2_Basis = expertfunc_Description.replace("\n", " ").replace("\r", " ")
+                SBS2_Basis = " ".join(SBS2_Basis.split())
                 Functional_Result_Source = 'Expert'
             elif oncokb_N:
-                SBS2_Basis = oncokb_Description
+                SBS2_Basis = oncokb_Description.replace("\n", " ").replace("\r", " ")
+                SBS2_Basis = " ".join(SBS2_Basis.split())
                 Functional_Result_Source = 'OncoKB'
             else:
                 SBS2_Basis = "BS3 in ClinGen VCEP."
@@ -543,7 +662,7 @@ def main():
 
     
         # Predictive evidence
-        if function.isSBP2(var_type, SpliceAI_pred, dbscSNV_ada_score, dbscSNV_rf_score):
+        if check_evidence.isSBP2(var_type, SpliceAI_pred, dbscSNV_ada_score, dbscSNV_rf_score):
             standard = standard+'SBP2;'
             point -= 1
             SBP2 = 1
@@ -554,8 +673,27 @@ def main():
             point += 8
             OVS1 = 1
             OVS1_Basis = consequence + " in tumor suppressor gene"           
-       
+        
+        if check_evidence.isOP2(isSingleGeneticEtiology):
+            standard = standard+'OP2;'
+            point += 1
+            OP2 = 1
+            OP2_Basis = SingleGeneticEtiologyDescription.replace("\n", " ").replace("\r", " ")
+            OP2_Basis = " ".join(OP2_Basis.split())
 
+        if check_evidence.isOS1(HasSameAAchange):
+            standard = standard+'OS1;'
+            point += 4
+            OS1 = 1
+            OS1_Basis = SameAAchangeDescription.replace("\n", " ").replace("\r", " ")
+            OS1_Basis = " ".join(OS1_Basis.split())
+
+        if isOM4:
+            if not check_evidence.isOS1(HasSameAAchange) and not check_evidence.isOS3(isCancerHotspots, isCOSMICHotspots, isExpertCuratedHotspots, ExpertEvidenceCode, CancerHotspots_sample, CancerHotspots_count, COSMIC_sample, COSMIC_count) and not check_evidence.isOM1(domain_name):
+                standard = standard+'OM4;'
+                point += 2
+                OM4 = 1
+                OM4_Basis = f'Missense variant at an amino acid residue where a different missense variant determined to be oncogenic (using this standard) has been documented. Amino acid difference({AAchange_single}:{GranthmsDistance}) from reference amino acid is >= missense change determined to be oncogenic({SameAAresidue}:{GranthmsDistance_SameAAresidue}).'
 
         
 # ----------------------Part Four: Classification-----------------------------------
@@ -574,6 +712,8 @@ def main():
         
         result = {'Variant_ID': Variant_ID, 
                   'Gene':gene,
+                  'Transcript': Transcript,
+                  'Transcript_tag': Transcript_tag,
                   'Variant_Information': Variant_Information,
                   'Point': point,
                   'Classification': classification, 
@@ -587,7 +727,7 @@ def main():
                   'OS1': OS1,
                   'OS1_Basis': OS1_Basis,
                   'OS2': OS2,
-                  'OS2_evidence': OS2_Basis,
+                  'OS2_Basis': OS2_Basis,
                   'OS3': OS3,
                   'OS3_Basis': OS3_Basis,
                   'OM1': OM1,
@@ -615,30 +755,39 @@ def main():
                   'SBP1': SBP1,
                   'SBP1_Basis': SBP1_Basis,
                   'SBP2': SBP2,
-                  'SBP2_Basis': SBP2_Basis
-                  }
+                  'SBP2_Basis': SBP2_Basis,
+                  'vChr': vChr,
+                  'vPos': vPos,
+                  'vrsID': vrsID,
+                  'vRef': vRef,
+                  'vAlt': vAlt}
 
         df_output = pd.DataFrame([result])
         if index == 0:
             # If it is the first variant, write it directly to the file.
             if output_type == 'json':
                 df_output.to_json(svoc_output_json_file, orient='records', lines=True, mode='w')
-                #print(f"SVOC annotation result has been successfully stored in {svoc_output_json_file}.")
+                df_output.to_csv(svoc_output_txt_file, sep='\t', index=False, mode='w')
             elif output_type == 'csv':
                 df_output.to_csv(svoc_output_csv_file, index=False, mode='w')
-                #print(f"SVOC annotation result has been successfully stored in {svoc_output_csv_file}.")
+                df_output.to_csv(svoc_output_txt_file, sep='\t', index=False, mode='w')
             else:
                 df_output.to_csv(svoc_output_txt_file, sep='\t', index=False, mode='w')
-                #print(f"SVOC annotation result has been successfully stored in {svoc_output_txt_file}.")
         else:
             # If it's not the first variant, append the written file.
             if output_type == 'json':
                 df_output.to_json(svoc_output_json_file, orient='records', lines=True, mode='a')
+                df_output.to_csv(svoc_output_txt_file, sep='\t', mode='a', index=False, header=False)
             elif output_type == 'csv':
                 df_output.to_csv(svoc_output_csv_file, index=False, mode='a', header=False)
+                df_output.to_csv(svoc_output_txt_file, sep='\t', mode='a', index=False, header=False)
             else:
-                df_output.to_csv(svoc_output_txt_file, sep='\t', mode='a', index=False)
-        
+                df_output.to_csv(svoc_output_txt_file, sep='\t', mode='a', index=False, header=False)
+
+    # svocoutput.filter
+    svoc_output_txt_filter_file = f"{output_prefix}.{paras['buildver']}_svocoutput.filter.txt"
+    svoc_output_filter(svoc_output_txt_file, svoc_output_txt_filter_file)   
+
     print("%s" %end_description)
 
 if __name__ == "__main__":
