@@ -1,8 +1,6 @@
-![Teaser image](./SVOC_LOGO.png)
-
 <div align="center">    
     
-# Somatic Variant Oncogenicity Classifier (SVOC)
+![Teaser image](./SVOC_LOGO.png)
 
 
 </div>
