@@ -85,8 +85,8 @@ database_names = refGene dbnsfp47a dbscsnv11
 
 5. Clone the repository:
  ```bash
- git clone https://github.com/{USERNAME}/{REPO_NAME}.git
- cd FPKGRAG
+ git clone https://github.com/leqingsang/SVOC.git
+ cd SVOC
  ```
 
 6. Create a conda environment and install the required dependencies:
