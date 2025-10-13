@@ -3,7 +3,7 @@ from modules.spliceai.utils import Annotator
 from modules.spliceai.utils import get_delta_scores
 from dataclasses import dataclass
 
-def getSpliceAI(chr, pos, ref, alts):
+def getSpliceAI(chr, pos, ref, alts, buildver, ref_fasta_file):
     @dataclass
     class Record:
         chrom: str
@@ -13,12 +13,12 @@ def getSpliceAI(chr, pos, ref, alts):
 
     # Create an instance
     record = Record(chr, pos, ref, alts)
-    dist_var = 50  # Variation distance around splicing sites
+    dist_var = 50  #  Maximum distance between the variant and gained/lost splice site (SpliceAI Default)
     mask = np.array([True] * len(record.alts))  
 
     # Create an instance of the Annotator class
-    ref_fasta = 'svocdb/ref_fasta/hg19.fa'
-    annotations = 'grch37'
+    ref_fasta = ref_fasta_file
+    annotations = 'grch37' if buildver == 'hg19' else 'grch38'
     ann = Annotator(ref_fasta, annotations)
     DS_AG = -1
     DS_AL = -1
