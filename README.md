@@ -7,13 +7,26 @@
 
 ## PREREQUISITE
 
-1. You need install Python version >= 3.11.5.
-2. You need install [ANNOVAR](http://annovar.openbioinformatics.org/en/latest/) (version >= 2016-02-01) and [TransVar](https://github.com/zwdzwd/transvar) (version >= 2.5.10.20211024).
-3. SVOC references the results of loss-of-function variant judgments from [AutoPVS1](https://github.com/JiguangPeng/autopvs1). Although the AutoPVS1 algorithm is integrated into the SVOC project (`SVOC/modules/autopvs1`), the required resources for its execution (such as VEP, its cache, and FASTA files) need to be pre-installed.
+1. Clone the repository:
+ ```bash
+ git clone https://github.com/leqingsang/SVOC.git
+ cd SVOC
+ ```
+
+2. Create a conda environment and install the required dependencies:
+```bash
+conda create -n {ENV_NAME} python=3.11
+conda activate {ENV_NAME}
+pip install -r requirements.txt
+```
+
+3. You need install [ANNOVAR](http://annovar.openbioinformatics.org/en/latest/) (version >= 2016-02-01) and [TransVar](https://github.com/zwdzwd/transvar) (version >= 2.5.10.20211024).
+   
+4. SVOC references the results of loss-of-function variant judgments from [AutoPVS1](https://github.com/JiguangPeng/autopvs1). Although the AutoPVS1 algorithm is integrated into the SVOC project (`SVOC/modules/autopvs1`), the required resources for its execution (such as VEP, its cache, and FASTA files) need to be pre-installed.
 
     - VEP Installation
     ```bash
-    cd SVOC/modules/
+    cd /modules
     git clone https://github.com/Ensembl/ensembl-vep.git
     cd ensembl-vep
     git pull
@@ -83,18 +96,6 @@ database_names = refGene dbnsfp47a dbscsnv11
 
 - **gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz** can be downloaded from [exomes.liftover_grch38.vcf.bgz](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/liftover_grch38/vcf/exomes/gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz) and TBI from [exomes.liftover_grch38.vcf.bgz.tbi](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/liftover_grch38/vcf/exomes/gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz.tbi)
 
-5. Clone the repository:
- ```bash
- git clone https://github.com/leqingsang/SVOC.git
- cd SVOC
- ```
-
-6. Create a conda environment and install the required dependencies:
-```bash
-conda create -n {ENV_NAME} python=3.11
-conda activate {ENV_NAME}
-pip install -r requirements.txt
-```
 
 ## OPTIONS
 
