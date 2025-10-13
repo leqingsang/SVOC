@@ -1,5 +1,12 @@
-# SVOC
-SVOC (Somatic Variant Oncogenicity Classifier) is a resource offering somatic variant oncogenicity classification based on ClinGen/CGC/VICC guidelines.
+![Teaser image](./figures/logo.png)
+
+<div align="center">    
+    
+# Somatic Variant Oncogenicity Classifier (SVOC)
+
+
+</div>
+SVOC () is a resource offering somatic variant oncogenicity classification based on ClinGen/CGC/VICC guidelines.
 
 ## PREREQUISITE
 
