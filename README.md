@@ -135,8 +135,8 @@ database location/dir for the Annovar annotation datasets
 
 ## EXAMPLE
 ```
-./svoc.py -c config.ini   # Run the examples in config.ini
-./svoc.py -i your_vcf_input -o prefix_of_your_output
+python svoc.py -c config.ini   # Run the examples in config.ini
+python svoc.py -i your_vcf_input -o prefix_of_your_output
 ```
 
 ## HOW DOES IT WORK
