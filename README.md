@@ -30,7 +30,7 @@ conda activate {ENV_NAME}
 pip install -r requirements.txt
 ```
 
-3. You need install [ANNOVAR](http://annovar.openbioinformatics.org/en/latest/) (version >= 2016-02-01) and [TransVar](https://github.com/zwdzwd/transvar) (version >= 2.5.10.20211024).
+3. You need install [ANNOVAR](http://annovar.openbioinformatics.org/en/latest/) (version >= 2016-02-01), [TransVar](https://github.com/zwdzwd/transvar) (version >= 2.5.10.20211024) and [BCFTools](https://github.com/samtools/bcftools).
    
 4. SVOC references the results of loss-of-function variant judgments from [AutoPVS1](https://github.com/JiguangPeng/autopvs1). Although the AutoPVS1 algorithm is integrated into the SVOC project (`SVOC/modules/autopvs1`), the required resources for its execution (such as VEP, its cache, and FASTA files) need to be pre-installed.
 
