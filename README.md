@@ -83,6 +83,19 @@ database_names = refGene dbnsfp47a dbscsnv11
 
 - **gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz** can be downloaded from [exomes.liftover_grch38.vcf.bgz](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/liftover_grch38/vcf/exomes/gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz) and TBI from [exomes.liftover_grch38.vcf.bgz.tbi](https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/liftover_grch38/vcf/exomes/gnomad.exomes.r2.1.1.sites.liftover_grch38.vcf.bgz.tbi)
 
+5. Clone the repository:
+ ```bash
+ git clone https://github.com/{USERNAME}/{REPO_NAME}.git
+ cd FPKGRAG
+ ```
+
+6. Create a conda environment and install the required dependencies:
+```bash
+conda create -n {ENV_NAME} python=3.11
+conda activate {ENV_NAME}
+pip install -r requirements.txt
+```
+
 ## OPTIONS
 
 - --version             
