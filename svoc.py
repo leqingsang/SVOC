@@ -449,7 +449,7 @@ def main():
         domain_name = db_handler.getOncokbDomain(gene,startAA,endAA)
 
         # Predictive evidence
-        isOVS1, OVS1_strength, consequence = check_evidence.isOVS1(chr, pos, ref, alt, gDNA, isTSG, buildver)
+        isOVS1, OVS1_strength, consequence = check_evidence.isOVS1(chr, pos, ref, alt, gDNA, isTSG, buildver, vPos, vRef, vAlt)
         
         SIFT_pred = row['SIFT_pred']
         MutationAssessor_pred = row['MutationAssessor_pred']
