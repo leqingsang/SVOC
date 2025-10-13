@@ -5,6 +5,16 @@
 
 </div>
 
+## Table of Contents
+- [PREREQUISITE](#PREREQUISITE)
+- [OPTIONS](#OPTIONS)
+- [EXAMPLE](#EXAMPLE)
+- [HOW DOES IT WORK](#HOW-DOES-IT-WORK)
+- [WEB SERVER](#WEB-SERVER)
+- [LICENSE](#LICENSE)
+- [REFERENCE](#REFERENCE)
+- [CONTACT](#CONTACT)
+
 ## PREREQUISITE
 
 1. Clone the repository:
@@ -144,7 +154,7 @@ python svoc.py -i your_vcf_input -o prefix_of_your_output
 
 SVOC accepts unannotated input files in VCF format, where each line corresponds to one somatic variant. SVOC will call ANNOVAR and TransVar to generate necessary annotations. Then, it automatically scores all 17 criteria and calculates the total score of the variant based on the applicable rules defined in the guidelines. The oncogenicity category is finally assigned according to the total score: ≥10 points for Oncogenic, 6–9 points for Likely Oncogenic, 0–5 points for VUS, -1 to -6 points for Likely Benign, and ≤-7 points for Benign. The output file can be formatted as JSON, CSV, or TXT, with each line corresponding to one somatic variant.
 
-## Web server
+## WEP SERVER
 https://svoc.premedkb.cn
 
 ## LICENSE
@@ -154,6 +164,6 @@ SVOC is free for non-commercial use without warranty. Users need to obtain licen
 ## REFERENCE
 Horak P, Griffith M, Danos AM, et al. [Standards for the classification of pathogenicity of somatic variants in cancer (oncogenicity): Joint recommendations of Clinical Genome Resource (ClinGen), Cancer Genomics Consortium (CGC), and Variant Interpretation for Cancer Consortium (VICC)](https://pubmed.ncbi.nlm.nih.gov/36063163/). <i>Genet Med</i>. 2022;24(9):1991. [doi:10.1016/j.gim.2022.07.001](https://pubmed.ncbi.nlm.nih.gov/36063163/)
 
-## Contact
+## CONTACT
 For technical questions please open issue, or contact:
 - Leqing Sang <lqsang25@m.fudan.edu.cn>
