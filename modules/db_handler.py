@@ -1,124 +1,356 @@
-import pymysql, sqlite3, re
-from warnings import filterwarnings
+import numpy as np
+from modules.autopvs1 import AutoPVS1, AutoPVS1CNV
 
-global db, cursor
-
-db = sqlite3.connect("svocdb/SVOC_v20250108.db", uri=True)
-cursor = db.cursor()
-
-
-
-# Execute SQL command, capture errors and warnings
-def pymysql_cursor(sql, params=None):
-  # try... except... can only capture errors
-  filterwarnings("error", category = pymysql.Warning)
-  try:
-    # cursor.execute(sql) will automatically return the number of affected rows
-    if params is not None:
-        effected_rows = cursor.execute(sql, params)
+# Splicing effect
+def AffectSplicing(SpliceAI_pred, dbscSNV_ada_score, dbscSNV_rf_score):
+    if SpliceAI_pred and ((dbscSNV_ada_score != '.' and float(dbscSNV_ada_score) >= 0.6) or (dbscSNV_rf_score != '.' and float(dbscSNV_rf_score) >= 0.6)):
+        return True
     else:
-        effected_rows = cursor.execute(sql)
-    db.commit()
-  except pymysql.Error as e:
-    db.rollback()
-    raise e  
-  except pymysql.Warning as w:
-    db.rollback()
-    raise w  
-  else:
-    if re.match('^SELECT', sql):
-      # cursor.fetchone() return tuple; cursor.execute(sql) returns the number of rows affected 
-      # one query result: ((1,)); multiple results: ((1,),(2,))
-      result = cursor.fetchall()
-      if len(result) == 1:
-        single_result = result[0][0]
-        return single_result
-      elif len(result) > 1:
-        multiple_results = []
-        for ele in result:
-          multiple_results.append(ele[0])
-        return multiple_results
-    elif re.match('^LOAD DATA LOCAL INFILE', sql):
-      return cursor.rowcount
-
-def getHotspots(gene, refAA, altAA, posAA, aa):
-
-    isExist = False
-    sample = 0
-    count = 0
-    sample = pymysql_cursor("SELECT Mutation_Count from SNVHotspots WHERE Gene = ? and Amino_Acid_Position = ? and Reference_Amino_Acid LIKE ? and Variant_Amino_Acid LIKE ?;", (gene, posAA, f"{refAA}%", f"{altAA}%"))
-    raw_count = pymysql_cursor("SELECT Variant_Amino_Acid from SNVHotspots WHERE Gene = ? and Amino_Acid_Position = ? and Reference_Amino_Acid LIKE ? and Variant_Amino_Acid LIKE ?;", (gene, posAA, f"{refAA}%", f"{altAA}%"))
-    isExist = bool(raw_count)
-    if isExist:
-      count = int(re.findall(r'\d+', raw_count)[0])
-    else: # Search Indel
-      
-      sample = pymysql_cursor("SELECT Mutation_Count from INDELHotspots WHERE Gene = ? and Variant_Amino_Acid LIKE ?;", (gene, f"{aa}%"))
-      raw_count = pymysql_cursor("SELECT Variant_Amino_Acid from INDELHotspots WHERE Gene = ? and Variant_Amino_Acid LIKE ?;", (gene, f"{aa}%"))
-      isExist = bool(raw_count)
-      if isExist:
-        count = int(re.findall(r':(\d+)', raw_count)[0])
-
-    return isExist, sample, count
-
-def getCOSMICHotspots(gene, AAchange_single):
-    refAA = re.search(r"p\.([A-Za-z]|\*)(\d+)([A-Za-z]|\*|\?|\=)", AAchange_single).group(1)
-    posAA = re.search(r"p\.([A-Za-z]|\*|)(\d+)([A-Za-z]|\*|\?|\=)", AAchange_single).group(2)
-    AAchange_position = 'p.'+refAA+posAA
-    isExist = False
-    sample = 0
-    count = 0
-    sample = pymysql_cursor("SELECT SUM(COSMIC_SAMPLE_MUTATED) from Mutation WHERE Gene = ? AND Mutation_AA LIKE ?;", (gene, f"{AAchange_position}_"))
-    if '_' in AAchange_position: # When multiple amino acid changes occur, usually followed by a single or multiple characters, the wildcard '%' can be used
-       sample = pymysql_cursor("SELECT SUM(COSMIC_SAMPLE_MUTATED) from Mutation WHERE Gene = ? AND Mutation_AA LIKE ?;", (gene, f"{AAchange_position}%"))
-    count = pymysql_cursor("SELECT SUM(COSMIC_SAMPLE_MUTATED) from Mutation WHERE Gene = ? AND Mutation_AA = ?;", (gene, AAchange_single))
-    isExist = bool(count)
-    return isExist, sample, count
-
-def getExpertCuratedHotspots(gene, gDNA):
-   isExist = False
-   ExpertEvidenceCode = ''
-   ExpertEvidenceCode = pymysql_cursor("SELECT EvidenceCode from ExpertCuratedHotspots WHERE Gene = ? AND gDNA = ?;", (gene, gDNA))
-   isExist = bool(ExpertEvidenceCode)
-   ExpertCuratedHotspots_Basis = pymysql_cursor("SELECT Basis from ExpertCuratedHotspots WHERE Gene = ? AND gDNA = ?;", (gene, gDNA))
-
-   return isExist, ExpertEvidenceCode, ExpertCuratedHotspots_Basis
-
-def getVCEPMetCodes(Transcript, cDNA):
-    hgvs = str(Transcript) + ":" + str(cDNA)
-    MetCodes = pymysql_cursor("SELECT MetCodes from ClinGenVCEP WHERE ? LIKE HGVS;", (f"%{hgvs}%",))
-    return MetCodes
-def getOncoKBRes(aa,gene):
-    oncokb_class = pymysql_cursor("SELECT Oncogenic_effect from OncoKBVariant where Alteration = ? and Gene = ?;", (aa,  gene))
-    oncokb_Description = pymysql_cursor("SELECT Description from OncoKBVariant where Alteration = ? and Gene = ?;", (aa,  gene))
-    return oncokb_class, oncokb_Description
-
-def getExpertFuncRes(aa,gene,gDNA):
-    if aa:
-      expertfunc_class = pymysql_cursor("SELECT Oncogenic_effect from ExpertFuncRes where Alteration = ? and Gene = ?;", (aa,  gene))
-      expertfunc_Description = pymysql_cursor("SELECT Description from ExpertFuncRes where Alteration = ? and Gene = ?;", (aa,  gene))
+        return False
+def NotAffectSplicing(SpliceAI_pred, dbscSNV_ada_score, dbscSNV_rf_score):
+    if not SpliceAI_pred and ((dbscSNV_ada_score != '.' and float(dbscSNV_ada_score) < 0.6) and (dbscSNV_rf_score != '.' and float(dbscSNV_rf_score) < 0.6)):
+        return True
     else:
-      expertfunc_class = pymysql_cursor("SELECT Oncogenic_effect from ExpertFuncRes where Alteration = ? and Gene = ?;", (gDNA,  gene))
-      expertfunc_Description = pymysql_cursor("SELECT Description from ExpertFuncRes where Alteration = ? and Gene = ?;", (gDNA,  gene))
-    return expertfunc_class, expertfunc_Description
+        return False
 
-def isOncoGene(gene):
-    role_in_cancer = pymysql_cursor("SELECT RoleinCancer from Gene where Gene = ?;", (gene,))
-
-    if role_in_cancer and "oncogene" in role_in_cancer:
-       return True
+# Cancer hotspots: OS3、OM3、OP3
+def isOS3(isCancerHotspots, isCOSMICHotspots, isExpertCuratedHotspots, ExpertEvidenceCode, CancerHotspots_sample, CancerHotspots_count, COSMIC_sample, COSMIC_count):
+    if isCancerHotspots:
+        
+        if CancerHotspots_sample >= 50 and CancerHotspots_count >= 10:
+            return True
+        else:
+            return False
+    elif not isCancerHotspots and isCOSMICHotspots:
+        if COSMIC_sample >= 50 and COSMIC_count >= 10:
+            return True
+        else:
+            return False
+    elif not isCancerHotspots and not isCOSMICHotspots and isExpertCuratedHotspots:
+        if ExpertEvidenceCode == "OS3":
+            return True
+        else:
+            return False
     else:
-       return False
+        return False
 
-def isTSG(gene):  
-    role_in_cancer = pymysql_cursor("SELECT RoleinCancer from Gene where Gene = ?;", (gene,))
-    if role_in_cancer and "TSG" in role_in_cancer:
-       return True
+
+def isOM3(isCancerHotspots, isCOSMICHotspots, isExpertCuratedHotspots, ExpertEvidenceCode, CancerHotspots_sample, CancerHotspots_count, COSMIC_sample, COSMIC_count):
+    if isCancerHotspots:
+        if CancerHotspots_sample < 50 and CancerHotspots_count >= 10:
+            return True
+        else:
+            return False
+    elif not isCancerHotspots and isCOSMICHotspots:
+        if COSMIC_sample < 50 and COSMIC_count >= 10:
+            return True
+        else:
+            return False
+    elif not isCancerHotspots and not isCOSMICHotspots and isExpertCuratedHotspots:
+        if ExpertEvidenceCode == "OM3":
+            return True
+        else:
+            return False
     else:
-       return False
+        return False
+
+def isOP3(isCancerHotspots, isCOSMICHotspots, isExpertCuratedHotspots, ExpertEvidenceCode, CancerHotspots_sample, CancerHotspots_count, COSMIC_sample, COSMIC_count):
+    if isCancerHotspots:
+        if CancerHotspots_count < 10:
+            return True
+        else:
+            return False
+    elif not isCancerHotspots and isCOSMICHotspots:
+        if COSMIC_count < 10:
+            return True
+        else:
+            return False
+    elif not isCancerHotspots and not isCOSMICHotspots and isExpertCuratedHotspots:
+        if ExpertEvidenceCode == "OP3":
+            return True
+        else:
+            return False
+    else:
+        return False
+
+# Population data: SBVS1、SBS1、OP4 
+def isSBVS1(inGnomAD, MAF, gene, Max_AC, Max_AN):
+    if inGnomAD:
+        if gene == "CDH1" and MAF > 0.002 and Max_AN > 2000 and Max_AC >= 5:
+            return True
+        elif gene == "PTEN" and MAF > 0.01 and Max_AN > 2000 and Max_AC >= 5:
+            return True
+        elif gene == "TP53" and MAF > 0.001 and Max_AC >= 5:
+            return True
+        elif gene not in ["CDH1", "PTEN", "TP53"] and MAF > 0.05:
+            return True
+        else:
+            return False
+    else:
+        return False
+
+def isSBS1(inGnomAD, MAF, gene, Max_AC, Max_AN):
+    if inGnomAD:
+        if gene == "CDH1" and (MAF <= 0.002 and MAF > 0.001) and Max_AN > 2000 and Max_AC >= 5:
+            return True
+        elif gene == "PTEN" and (MAF <= 0.01 and MAF > 0.001) and Max_AN > 2000 and Max_AC >= 5:
+            return True
+        elif gene == "TP53" and (MAF <= 0.001 and MAF > 0.0003) and Max_AC >= 5:
+            return True
+        elif gene not in ["CDH1", "PTEN", "TP53"] and (MAF <= 0.05 and MAF > 0.01):
+            return True
+        else:
+            return False
+    else:
+        return False
+
+def isOP4(inGnomAD, MAF, gene, Max_AC, Max_AN):
+    
+    if inGnomAD and gene == "CDH1":
+        if Max_AC <= 2 and MAF <= 0.00001:
+            return True
+        elif Max_AC > 2 and MAF <= 0.00002:
+            return True
+        else:
+            return False
+    elif inGnomAD and gene == "PTEN":
+        if Max_AC == 1 and MAF < 0.00001:
+            return True
+        elif Max_AC >= 2 and MAF <= 0.00002:
+            return True
+        else:
+            return False
+    elif gene == "TP53" and not inGnomAD:
+        return True
+    elif inGnomAD and gene not in ["CDH1", "PTEN", "TP53"]:
+        if MAF < 0.005:
+            return True
+        else:
+            return False
+    # elif not inGnomAD and gene not in ["CDH1", "PTEN", "TP53"]:
+    #     return True
+    elif not inGnomAD:
+        return True
+    else:
+        return False
+
+# Computational Evidence: SBP1、OP1
+def isSBP1(SIFT_pred,
+          MutationAssessor_pred,
+          FATHMM_pred,
+          Polyphen2_HDIV_pred,
+          Polyphen2_HVAR_pred,
+          MutationTaster_pred,
+          SpliceAI_pred,
+          CADD_phred,
+          REVEL_pred,
+          dbscSNV_ada_score, dbscSNV_rf_score):
+    # Evolutionary Conservation>=4, considered not to affect evolutionary conservation
+    EvoConsPre_count = 0
+    if SIFT_pred == 'T':
+        EvoConsPre_count += 1
+    if MutationAssessor_pred in ['L', 'N']:
+        EvoConsPre_count += 1
+    if FATHMM_pred == 'T':
+        EvoConsPre_count += 1
+    if Polyphen2_HDIV_pred == 'B':
+        EvoConsPre_count += 1
+    if Polyphen2_HVAR_pred == 'B':
+        EvoConsPre_count += 1
+    if MutationTaster_pred in ['N', 'P']:
+        EvoConsPre_count += 1
+    SPP1_count = 0
+    if EvoConsPre_count >= 4:
+        SPP1_count += 1
+    if CADD_phred != '.' and float(CADD_phred) < 15:
+        SPP1_count += 1
+    if REVEL_pred != '.' and float(REVEL_pred) < 0.5:
+        SPP1_count += 1
+    if SPP1_count >= 2 or NotAffectSplicing(SpliceAI_pred, dbscSNV_ada_score, dbscSNV_rf_score):
+    # At least two out of the three categories are considered to have no carcinogenic or splicing effects
+        return True
+    else:
+        return False
+    
+
+def isOP1(SIFT_pred,
+          MutationAssessor_pred,
+          FATHMM_pred,
+          Polyphen2_HDIV_pred,
+          Polyphen2_HVAR_pred,
+          MutationTaster_pred,
+          SpliceAI_pred,
+          CADD_phred,
+          REVEL_pred,
+          dbscSNV_ada_score, dbscSNV_rf_score):
+    # Evolutionary Conservation>=4, considered to affect evolutionary conservation
+    EvoConsPre_count = 0
+    if SIFT_pred == 'D':
+        EvoConsPre_count += 1
+    if MutationAssessor_pred in ['H', 'M']:
+        EvoConsPre_count += 1
+    if FATHMM_pred == 'D':
+        EvoConsPre_count += 1
+    if Polyphen2_HDIV_pred in ['D', 'P']:
+        EvoConsPre_count += 1
+    if Polyphen2_HVAR_pred in ['D', 'P']:
+        EvoConsPre_count += 1
+    if MutationTaster_pred in ['A', 'D']:
+        EvoConsPre_count += 1
+    OP1_count = 0
+    if EvoConsPre_count >= 4:
+        OP1_count += 1
+    if CADD_phred != '.' and float(CADD_phred) >= 15:
+        OP1_count += 1
+    if REVEL_pred != '.' and float(REVEL_pred) > 0.7:
+        OP1_count += 1
+    if OP1_count >= 2 or AffectSplicing(SpliceAI_pred, dbscSNV_ada_score, dbscSNV_rf_score): 
+    # At least two out of the three categories are believed to have carcinogenic effects or splicing effects
+        return True
+    else:
+        return False
 
 
-def getOncokbDomain(gene,startAA,endAA):
-   domain_name = ''
-   domain_name = pymysql_cursor("SELECT Short_name from OncoKBDomain where Gene = ? and AAChange_start <= ? and AAChange_end >= ?;", (gene, startAA, endAA))
-   return domain_name
+    
+# Functional evidence: OS2、SBS2
+def isOS2(vcep_PS3, oncokb_O, oncokb_N, expertfunc_OS2, expertfunc_SBS2):
+    # 1.Expert Interpretation
+    if expertfunc_OS2:
+        return True
+    # 2.OncoKB
+    elif not expertfunc_SBS2 and oncokb_O:
+        return True
+    # 3.ClinGen VCEP
+    elif not expertfunc_SBS2 and not oncokb_N and vcep_PS3:
+        return True
+    else:
+        return False
+
+def isSBS2(vcep_BS3, oncokb_O, oncokb_N, expertfunc_OS2, expertfunc_SBS2):
+    # 1.Expert Interpretation
+    if expertfunc_SBS2:
+        return True
+    # 2.OncoKB
+    elif not expertfunc_OS2 and oncokb_N:
+        return True
+    # 3.ClinGen VCEP
+    elif not expertfunc_OS2 and not oncokb_O and vcep_BS3:
+        return True
+    else:
+        return False
+    
+
+# Predictive data: SBP2、OVS1
+def isSBP2(var_type, SpliceAI_pred, dbscSNV_ada_score, dbscSNV_rf_score):
+    if var_type == "Synonymous" and NotAffectSplicing(SpliceAI_pred, dbscSNV_ada_score, dbscSNV_rf_score):
+        return True
+    else:
+        return False
+
+
+def isOVS1(chr, pos, ref, alt, gDNA, isTSG, buildver, vPos, vRef, vAlt):
+    chr = str(chr)
+    pos = str(pos)
+    ref = str(ref)
+    alt = str(alt)
+    vPos = str(vPos)
+    vRef = str(vRef)
+    vAlt = str(vAlt)
+    isOVS1 = False
+    strength = ''
+    consequence = ''
+    if 'ins' not in gDNA and 'del' in gDNA: # deletion
+        if '_' in gDNA:
+            parts = pos.split('_')
+            start = str(parts[0])
+            end = str(parts[1])
+            var = chr + '-' + start + '-' + end +'-DEL'
+            demo = AutoPVS1CNV(var, buildver)
+            consequence = demo.vep_consequence
+            if str(demo.pvs1.strength_raw) != 'Strength.Unmet' and isTSG:
+                isOVS1 = True
+                strength = demo.pvs1.strength_raw
+                return isOVS1, strength, consequence
+            else:
+                return isOVS1, strength, consequence
+        else: # Single site deletion
+            var = chr + '-' + pos + '-' + pos +'-DEL'
+            demo = AutoPVS1CNV(var, buildver)
+            consequence = demo.vep_consequence
+            if str(demo.pvs1.strength_raw) != 'Strength.Unmet' and isTSG:
+                isOVS1 = True
+                strength = demo.pvs1.strength_raw
+                return isOVS1, strength, consequence
+            else:
+                return isOVS1, strength, consequence
+    elif 'dup' in gDNA: # duplication
+        if '_' in gDNA: # Regional duplication
+            parts = pos.split('_')
+            start = str(parts[0])
+            end = str(parts[1])
+            var = chr + '-' + start + '-' + end +'-DUP'
+            demo = AutoPVS1CNV(var, buildver)
+            consequence = demo.vep_consequence
+            if str(demo.pvs1.strength_raw) != 'Strength.Unmet' and isTSG:
+                isOVS1 = True
+                strength = demo.pvs1.strength_raw
+                return isOVS1, strength, consequence
+            else:
+                return isOVS1, strength, consequence
+        else: # Single site duplication
+            var = chr + '-' + pos + '-' + pos +'-DUP'
+            demo = AutoPVS1CNV(var, buildver)
+            consequence = demo.vep_consequence
+            if str(demo.pvs1.strength_raw) != 'Strength.Unmet' and isTSG:
+                isOVS1 = True
+                strength = demo.pvs1.strength_raw
+                return isOVS1, strength, consequence
+            else:
+                return isOVS1, strength, consequence
+    else: # delins;ins;SNV
+        var = chr + '-' + vPos + '-' + vRef + '-' + vAlt
+        print(var)
+        demo = AutoPVS1(var, buildver)
+        consequence = demo.consequence
+        if isTSG and demo.islof:
+            if str(demo.pvs1.strength_raw) != 'Strength.Unmet':
+                isOVS1 = True
+                strength = demo.pvs1.strength_raw
+                return isOVS1, strength, consequence
+            else:
+                return isOVS1, strength, consequence
+        else:
+            return isOVS1, strength, consequence                    
+
+# OM1、OM2
+def isOM1(domain_name):
+    return domain_name
+
+def isOM2(isONG, isTSG, var_type):
+    if (isONG or isTSG) and ("InFrameDeletion" in var_type or "InFrameInsertion" in var_type):
+        return True
+    elif isTSG and ("CdsStopDeletion" in var_type):
+        return True
+    else:
+        return False
+
+# OS1、OM4、OP2
+def isOS1(HasSameAAchange):
+    if HasSameAAchange:
+        return True
+    else:
+        return False
+
+def isOM4(SameAAresidue, GranthmsDistance, GranthmsDistance_SameAAresidue):
+    if SameAAresidue:
+        if GranthmsDistance >= GranthmsDistance_SameAAresidue:
+            return True
+    else:
+        return False
+
+def isOP2(isSingleGeneticEtiology):
+    if isSingleGeneticEtiology:
+        return True
+    else:
+        return False
+
