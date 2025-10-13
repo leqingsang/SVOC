@@ -63,7 +63,7 @@ gnomadv2 = %(database_svoc)s/gnomadv2
 table_annovar = /annovar/table_annovar.pl
 annovar_database_locat = /annovar/humandb
 # check if database file exists
-database_names = refGene avsnp151 dbnsfp47a_interpro clinvar_20240917 intervar_20180118 dbnsfp47a dbscsnv11
+database_names = refGene avsnp151 dbnsfp47a_interpro dbnsfp47a dbscsnv11
 ```
 `ref_fasta` is the default directory for reference genome file, or you can customize it. You need to download:    
 
