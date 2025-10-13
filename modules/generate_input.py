@@ -1,57 +1,277 @@
 import re, pandas as pd
+import gzip
 
 def get_canonical_transcript(gene, exon_number, gtf_file_path):
     """
-    Retrieve RefSeq values for the specified gene name and exon number from the GTF file.
+    Retrieve RefSeq values for the specified gene name and exon number(s) from the GTF file.
     
     Parameters:
-		gene (str):  Gene name, such as "BRCA1".
-		exon_number (int):  Exon number, such as 9.
-		Gtf_file_cath (str): The path to the GTF file.
+        gene (str): Gene name, such as "BRCA1".
+        exon_number (int or list): Exon number(s), such as 9 or [6, 7].
+        gtf_file_path (str): The path to the GTF file.
     
-    return:
-		str:  If the RefSeq value is not found, return None.
+    Returns:
+        list: A list of RefSeq values. If no RefSeq value is found, returns an empty list.
     """
-    # Compile regular expressions to match gene names, exon numbers, and RefSeq
-    gene_pattern = re.compile(r'gene_name\s+"' + re.escape(gene) + r'"')
-    exon_pattern = re.compile(r'exon_number\s+' + str(exon_number) + r';')
-    refseq_pattern = re.compile(r'db_xref\s+"RefSeq:(NM_\d+)')
-    refseq_matches = []  # Store all matched RefSeq
-    try:
-        with open(gtf_file_path, 'r') as file:
-            for line in file:
-                # Check if the gene name and exon number are included
-                if gene_pattern.search(line) and exon_pattern.search(line):
-                    # Extract RefSeq
-                    match = refseq_pattern.findall(line)
-                    if match:
-                        refseq_matches.extend(match)
-    except FileNotFoundError:
-        print(f"Error: The file {gtf_file_math} was not found.")
-    except Exception as e:
-        print(f"Error：{e}")
-    return refseq_matches
+    # Compile regular expressions to match gene names and RefSeq
+    gene_pattern = re.compile(r'gene\s+"' + re.escape(gene) + r'"')
+    refseq_pattern = re.compile(r'transcript_id\s+"(NM_\d+)')
+    tag_pattern = re.compile(r'tag\s+"([^"]+)"')
+    
+    # Initialize a list to store all matched RefSeq values
+    refseq_tags = {}
 
-def transvar_transcript_filter(input_file, output_file, gtf_file_path):
+    # Handle exon_number as either an integer or a list
+    if isinstance(exon_number, int):
+        # If exon_number is an integer, compile a single pattern
+        exon_patterns = [re.compile(r'exon_number\s+"' + str(exon_number) + r'"')]
+    elif isinstance(exon_number, list):
+        # If exon_number is a list, compile a pattern for each exon number
+        exon_patterns = [re.compile(r'exon_number\s+"' + str(num) + r'"') for num in exon_number]
+    else:
+        raise ValueError("exon_number must be an integer or a list of integers.")
+
+    try:
+        with gzip.open(gtf_file_path, 'rt') as file:
+            for line in file:
+                # Check if the gene name is included
+                if gene_pattern.search(line):
+                    # Check each exon pattern
+                    for pattern in exon_patterns:
+                        if pattern.search(line):
+                            match_refseq = refseq_pattern.search(line)
+                            match_tag = tag_pattern.search(line)
+                            if match_refseq and match_tag:
+                                refseq = match_refseq.group(1)
+                                tag = match_tag.group(1)
+                                refseq_tags[refseq] = tag
+    except FileNotFoundError:
+        print(f"Error: The file {gtf_file_path} was not found.")
+    except Exception as e:
+        print(f"Error: {e}")
+
+    return refseq_tags
+
+
+def transvar_transcript_filter(input_file, output_file, gtf_file_path, mark_file):
     """
-    Filter transcripts.
+    Filter transcripts, but keep all transcripts for a genomic coordinate if none of them are canonical.
+    Also, mark each line and output a marked file.
     """
-    with open(input_file, "r") as infile, open(output_file, "w") as outfile:
+    # First pass: Identify genomic coordinates with canonical transcripts
+    coordinate_canonical_status = {}
+    with open(input_file, "r") as infile:
         headers = ['vChr','vPos','vrsID','vRef','vAlt','QUAL','FILTER','INFO','transcript','gene','strand','coordinate','region','info']
-        outfile.write('\t'.join(headers) + '\n')  # Separate headers with tabs and write them to a file
+        #infile.readline()  # Skip header
+        print("Start scanning transcripts...")
         for line in infile:
-            fields = line.strip().split('\t')  # Split fields
-            row = dict(zip(headers, fields)) # Use the zip function to combine key value pairs and convert them into dictionaries using the dict function
-            gene = row['gene']  
-            var_type = row['info'].split('CSQN=')[1].split(';')[0] if ';' in row['info'] else row['info'].split('CSQN=')[1]
-            if var_type == "IntergenicSNV": # There is no transcript of intergenic variation, no filtering!!!
-                outfile.write(line)
+            fields = line.strip().split('\t')
+            row = dict(zip(headers, fields))
+            
+            # Skip intergenic variations or rows without transcript information
+            if "Intergenic" in row['info'] or row['transcript'] == '.':
+                continue
+            
+            # Extract genomic coordinate identifier
+            coordinate_id = f"{row['vChr']}_{row['vPos']}_{row['vrsID']}_{row['vRef']}_{row['vAlt']}"
+            match1 = re.search(r'\w+_\d+', row['transcript'])
+            if match1:
+                transcript = match1.group(0)
             else:
-                transcript = re.search(r'\w+_\d+', row['transcript']).group(0) # group(0) Return the entire matching string.
-                exon_number = re.search(r'_exon_(\d+)', row['region']).group(1) # group(1) Return the content that matches the first capture group (i.e., (\ d+)).
-                canonical_transcripts = get_canonical_transcript(gene, exon_number, gtf_file_path)
-                if transcript in canonical_transcripts:
-                    outfile.write(line)
+                continue  # 或者根据需要设置一个默认值
+            # Extract transcript and region information
+            #transcript = re.search(r'\w+_\d+', row['transcript']).group(0)
+            match = re.search(r'_exon_(\d+)|_exons_\[(\d+(?:,\d+)*)\]', row['region'])
+            if match:
+                exon_number = match.group(1) or match.group(2).split(',')
+                exon_number = [int(num) for num in exon_number]
+            else:
+                exon_number = None
+            
+            # Get canonical transcripts for the gene and exon
+            canonical_transcripts = get_canonical_transcript(row['gene'], exon_number, gtf_file_path)
+            
+            # Update the coordinate's canonical status
+            if coordinate_id not in coordinate_canonical_status:
+                coordinate_canonical_status[coordinate_id] = False
+            if transcript in list(canonical_transcripts.keys()):
+                coordinate_canonical_status[coordinate_id] = True
+    
+    # Second pass: Generate the mark file
+    with open(input_file, "r") as infile, open(mark_file, "w") as markfile:
+        headers = ['vChr','vPos','vrsID','vRef','vAlt','QUAL','FILTER','INFO','transcript','gene','strand','coordinate','region','info']
+        headers_with_mark = ['vChr','vPos','vrsID','vRef','vAlt','QUAL','FILTER','INFO','transcript','gene','strand','coordinate','region','info', 'mark', 'transcript_tag']
+        markfile.write('\t'.join(headers_with_mark) + '\n')
+        infile.seek(0)  # Ensure we start from the beginning of the file
+        #infile.readline()  # Skip header
+        
+        for line in infile:
+            fields = line.strip().split('\t')
+            row = dict(zip(headers, fields))
+            
+            # Skip intergenic variations or rows without transcript information
+            if "Intergenic" in row['info'] or row['transcript'] == '.':
+                mark = '1'  # Mark as 1 for intergenic or no transcript
+                transcript_tag = '.'
+                markfile.write(line.strip() + f'\t{mark}\t{transcript_tag}\n')
+                continue
+            
+            # Extract genomic coordinate identifier
+            coordinate_id = f"{row['vChr']}_{row['vPos']}_{row['vrsID']}_{row['vRef']}_{row['vAlt']}"
+            
+            # Extract transcript and region information
+            match1 = re.search(r'\w+_\d+', row['transcript'])
+            if match1:
+                transcript = match1.group(0)
+            else:
+                continue  # 或者根据需要设置一个默认值
+            match = re.search(r'_exon_(\d+)|_exons_\[(\d+(?:,\d+)*)\]', row['region'])
+            if match:
+                exon_number = match.group(1) or match.group(2).split(',')
+                exon_number = [int(num) for num in exon_number]
+            else:
+                exon_number = None
+            
+            # Determine the mark for the current line
+            if coordinate_canonical_status.get(coordinate_id, False):
+                transcript_tags = get_canonical_transcript(row['gene'], exon_number, gtf_file_path)
+                if transcript in list(transcript_tags.keys()):
+                    mark = '2'  # Mark as 2 for canonical transcript
+                    transcript_tag = transcript_tags[transcript]
+                else:
+                    mark = '3'  # Mark as 3 for non-canonical transcript in a coordinate with canonical transcripts
+                    transcript_tag = '.'
+            else:
+                mark = '1'  # Mark as 1 for non-canonical transcript in a coordinate with no canonical transcripts
+                transcript_tag = '.'
+            
+            markfile.write(line.strip() + f'\t{mark}\t{transcript_tag}\n')
+        print("Transcript scan completed.")
+
+    # Third pass: Read the mark file and write lines to the output file based on the marks
+    with open(mark_file, "r") as markfile, open(output_file, "w") as outfile:
+        headers_with_mark = ['vChr','vPos','vrsID','vRef','vAlt','QUAL','FILTER','INFO','transcript','gene','strand','coordinate','region','info', 'mark', 'transcript_tag']
+        outfile.write('\t'.join(headers_with_mark) + '\n')
+        markfile.readline()  # Skip header
+        
+        for line in markfile:
+            fields = line.strip().split('\t')
+            row = dict(zip(headers_with_mark, fields))
+            mark = row['mark']
+            
+            if mark in ['1', '2']:
+                outfile.write('\t'.join(fields) + '\n')
+    
+def transvar_transcript_filter_web(input_file, output_file, gtf_file_path, mark_file):
+    """
+    Filter transcripts, but keep all transcripts for a genomic coordinate if none of them are canonical.
+    Also, mark each line and output a marked file.
+    """
+    # First pass: Identify genomic coordinates with canonical transcripts
+    coordinate_canonical_status = {}
+    with open(input_file, "r") as infile:
+        headers = ['vChr','vPos','vrsID','vRef','vAlt','QUAL','FILTER','INFO','transcript','gene','strand','coordinate','region','info']
+        #infile.readline()  # Skip header
+        print("Start scanning transcripts...")
+        for line in infile:
+            fields = line.strip().split('\t')
+            row = dict(zip(headers, fields))
+            
+            # Skip intergenic variations or rows without transcript information
+            if "Intergenic" in row['info'] or row['transcript'] == '.':
+                continue
+            
+            # Extract genomic coordinate identifier
+            coordinate_id = f"{row['vChr']}_{row['vPos']}_{row['vrsID']}_{row['vRef']}_{row['vAlt']}"
+            
+            # Extract transcript and region information
+            match1 = re.search(r'\w+_\d+', row['transcript'])
+            if match1:
+                transcript = match1.group(0)
+            else:
+                continue  # 或者根据需要设置一个默认值
+            #transcript = re.search(r'\w+_\d+', row['transcript']).group(0)
+            match = re.search(r'_exon_(\d+)|_exons_\[(\d+(?:,\d+)*)\]', row['region'])
+            if match:
+                exon_number = match.group(1) or match.group(2).split(',')
+                exon_number = [int(num) for num in exon_number]
+            else:
+                exon_number = None
+            
+            # Get canonical transcripts for the gene and exon
+            canonical_transcripts = get_canonical_transcript(row['gene'], exon_number, gtf_file_path)
+            
+            # Update the coordinate's canonical status
+            if coordinate_id not in coordinate_canonical_status:
+                coordinate_canonical_status[coordinate_id] = False
+            if transcript in list(canonical_transcripts.keys()):
+                coordinate_canonical_status[coordinate_id] = True
+    
+    # Second pass: Generate the mark file
+    with open(input_file, "r") as infile, open(mark_file, "w") as markfile:
+        headers = ['vChr','vPos','vrsID','vRef','vAlt','QUAL','FILTER','INFO','transcript','gene','strand','coordinate','region','info']
+        headers_with_mark = ['vChr','vPos','vrsID','vRef','vAlt','QUAL','FILTER','INFO','transcript','gene','strand','coordinate','region','info', 'mark', 'transcript_tag']
+        markfile.write('\t'.join(headers_with_mark) + '\n')
+        infile.seek(0)  # Ensure we start from the beginning of the file
+        #infile.readline()  # Skip header
+        
+        for line in infile:
+            fields = line.strip().split('\t')
+            row = dict(zip(headers, fields))
+            
+            # Skip intergenic variations or rows without transcript information
+            if "Intergenic" in row['info'] or row['transcript'] == '.':
+                mark = '1'  # Mark as 1 for intergenic or no transcript
+                transcript_tag = '.'
+                markfile.write(line.strip() + f'\t{mark}\t{transcript_tag}\n')
+                continue
+            
+            # Extract genomic coordinate identifier
+            coordinate_id = f"{row['vChr']}_{row['vPos']}_{row['vrsID']}_{row['vRef']}_{row['vAlt']}"
+            
+            # Extract transcript and region information
+            match1 = re.search(r'\w+_\d+', row['transcript'])
+            if match1:
+                transcript = match1.group(0)
+            else:
+                continue  # 或者根据需要设置一个默认值
+            match = re.search(r'_exon_(\d+)|_exons_\[(\d+(?:,\d+)*)\]', row['region'])
+            if match:
+                exon_number = match.group(1) or match.group(2).split(',')
+                exon_number = [int(num) for num in exon_number]
+            else:
+                exon_number = None
+            
+            # Determine the mark for the current line
+            if coordinate_canonical_status.get(coordinate_id, False):
+                transcript_tags = get_canonical_transcript(row['gene'], exon_number, gtf_file_path)
+                if transcript in list(transcript_tags.keys()):
+                    mark = '2'  # Mark as 2 for canonical transcript
+                    transcript_tag = transcript_tags[transcript]
+                else:
+                    mark = '3'  # Mark as 3 for non-canonical transcript in a coordinate with canonical transcripts
+                    transcript_tag = '.'
+            else:
+                mark = '1'  # Mark as 1 for non-canonical transcript in a coordinate with no canonical transcripts
+                transcript_tag = '.'
+            
+            markfile.write(line.strip() + f'\t{mark}\t{transcript_tag}\n')
+        print("Transcript scan completed.")
+
+    # Third pass: Read the mark file and write lines to the output file based on the marks
+    with open(mark_file, "r") as markfile, open(output_file, "w") as outfile:
+        headers_with_mark = ['vChr','vPos','vrsID','vRef','vAlt','QUAL','FILTER','INFO','transcript','gene','strand','coordinate','region','info', 'mark', 'transcript_tag']
+        outfile.write('\t'.join(headers_with_mark) + '\n')
+        markfile.readline()  # Skip header
+        
+        for line in markfile:
+            fields = line.strip().split('\t')
+            row = dict(zip(headers_with_mark, fields))
+            mark = row['mark']
+            
+            if mark in ['2']:
+                outfile.write('\t'.join(fields) + '\n')
+
 
 def merge_transvar_annovar(transvar_path, annovar_path, output_path):
     try:
