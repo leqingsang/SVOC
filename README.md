@@ -1,4 +1,4 @@
-![Teaser image](./figures/logo.png)
+![Teaser image](./logo.png)
 
 <div align="center">    
     
