@@ -1,4 +1,4 @@
-![Teaser image](./logo.png)
+![Teaser image](./SVOC_LOGO.png)
 
 <div align="center">    
     
