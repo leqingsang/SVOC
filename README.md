@@ -5,7 +5,7 @@
 
 </div>
 
-## Table of Contents
+## TABLE OF CONTENTS
 - [PREREQUISITE](#PREREQUISITE)
 - [OPTIONS](#OPTIONS)
 - [EXAMPLE](#EXAMPLE)
