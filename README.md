@@ -1,6 +1,6 @@
 <div align="center">    
     
-![Teaser image](./figures/SVOC_LOGO.png)
+![Teaser image](./svoc_logo_1112.png)
 
 
 </div>
