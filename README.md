@@ -109,38 +109,38 @@ database_names = refGene dbnsfp47a dbscsnv11
 
 ## OPTIONS
 
-- --version             
+- `--version`             
 show program''s version number and exit
 
-- --help, -h              
+- `--help`, `-h`              
 show this help message and exit  
 
-- --config=config.ini, -c config.ini            
+- `--config=config.ini`, `-c config.ini`            
 your own configure file           
 You can edit all the options in the configure and if you use this options, you can ignore all the other options bellow.
 
-- --buildver=hg19, -b hg19
+- `--buildver=hg19`, `-b hg19`
 genomic build version           
 It can be hg19 and hg38, will support other version later.
 
-- --input=example/example1.vcf, -i example/example1.vcf           
+- `--input=example/example1.vcf`, `-i example/example1.vcf`           
 input file of variants for classification           
 It can be VCF format, will support other famate later.
 
-- --output=example1, -o example1     
+- `--output=example1`, `-o example1`     
 prefix of the output file
 
-- --output_type=txt     
+- `--output_type=txt`     
 type of the output file     
 It can be JSON, CSV and TXT(default) format.
 
-- --database_svoc=svocdb, -d svocdb     
+- `--database_svoc=svocdb`, `-d svocdb`     
 database location/dir for the SVOC dataset files
 
-- --table_annovar=./table_annovar.pl     
+- `--table_annovar=./table_annovar.pl`     
 Annovar perl script of table_annovar.pl
 
-- --annovar_database_locat=humandb     
+- `--annovar_database_locat=humandb`     
 database location/dir for the Annovar annotation datasets
 
 
