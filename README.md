@@ -112,29 +112,29 @@ database_names = refGene dbnsfp47a dbscsnv11
 - --version             
 show program''s version number and exit
 
-- -h, --help              
+- --help, -h              
 show this help message and exit  
 
-- -c config.ini, --config=config.ini           
+- --config=config.ini, -c config.ini            
 your own configure file           
 You can edit all the options in the configure and if you use this options, you can ignore all the other options bellow.
 
-- -b hg19, --buildver=hg19    
+- --buildver=hg19, -b hg19
 genomic build version           
 It can be hg19 and hg38, will support other version later.
 
-- -i example/example1.vcf, --input=example/example1.vcf           
+- --input=example/example1.vcf, -i example/example1.vcf           
 input file of variants for classification           
 It can be VCF format, will support other famate later.
 
-- -o example1, --output=example1     
+- --output=example1, -o example1     
 prefix of the output file
 
 - --output_type=txt     
 type of the output file     
 It can be JSON, CSV and TXT(default) format.
 
-- -d svocdb, --database_svoc=svocdb     
+- --database_svoc=svocdb, -d svocdb     
 database location/dir for the SVOC dataset files
 
 - --table_annovar=./table_annovar.pl     
@@ -146,15 +146,15 @@ database location/dir for the Annovar annotation datasets
 
 ## EXAMPLE
 ```
-python svoc.py -c config.ini   # Run the examples in config.ini
-python svoc.py -i your_vcf_input -o prefix_of_your_output
+python ./svoc.py -c config.ini   # Run the examples in config.ini
+python ./svoc.py -i your_vcf_input -o prefix_of_your_output
 ```
 
 ## HOW DOES IT WORK
 
 SVOC accepts unannotated input files in VCF format, where each line corresponds to one somatic variant. SVOC will call ANNOVAR and TransVar to generate necessary annotations. Then, it automatically scores all 17 criteria and calculates the total score of the variant based on the applicable rules defined in the guidelines. The oncogenicity category is finally assigned according to the total score: ≥10 points for Oncogenic, 6–9 points for Likely Oncogenic, 0–5 points for VUS, -1 to -6 points for Likely Benign, and ≤-7 points for Benign. The output file can be formatted as JSON, CSV, or TXT, with each line corresponding to one somatic variant.
 
-## WEP SERVER
+## WEB SERVER
 https://svoc.premedkb.cn
 
 ## LICENSE
