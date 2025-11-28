@@ -119,7 +119,7 @@ show this help message and exit
 your own configure file           
 You can edit all the options in the configure and if you use this options, you can ignore all the other options bellow.
 
-- `--buildver=hg19`, `-b hg19`
+- `--buildver=hg19`, `-b hg19`            
 genomic build version           
 It can be hg19 and hg38, will support other version later.
 
